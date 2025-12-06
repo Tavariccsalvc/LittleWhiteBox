@@ -13,6 +13,20 @@ const SUMMARY_SESSION_ID = 'xb9';
 const SUMMARY_PROMPT_KEY = 'LittleWhiteBox_StorySummary';
 const extensionFolderPath = `scripts/extensions/third-party/${EXT_ID}`;
 const iframePath = `${extensionFolderPath}/story-summary/story-summary.html`;
+const KEEP_VISIBLE_COUNT = 2;
+
+const PROVIDER_MAP = {
+    openai: "openai",
+    google: "gemini",
+    gemini: "gemini",
+    claude: "claude",
+    anthropic: "claude",
+    deepseek: "deepseek",
+    cohere: "cohere",
+    custom: "custom",
+};
+
+const VALID_SECTIONS = ['keywords', 'events', 'characters', 'arcs'];
 
 let summaryGenerating = false;
 let overlayCreated = false;
@@ -25,6 +39,12 @@ let lastKnownChatLength = 0;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+function calcHideRange(lastSummarized) {
+    const hideEnd = lastSummarized - KEEP_VISIBLE_COUNT;
+    if (hideEnd < 0) return null;
+    return { start: 0, end: hideEnd };
+}
+
 function getStreamingGeneration() {
     const mod = window.xiaobaixStreamingGeneration;
     return mod?.xbgenrawCommand ? mod : null;
@@ -36,13 +56,13 @@ function getSettings() {
     return ext;
 }
 
-function getSummaryStore(chatId = getContext().chatId) {
+function getSummaryStore() {
+    const { chatId } = getContext();
     if (!chatId) return null;
-    const meta = chat_metadata[chatId] ||= {};
-    meta.extensions ||= {};
-    meta.extensions[EXT_ID] ||= {};
-    meta.extensions[EXT_ID].storySummary ||= {};
-    return meta.extensions[EXT_ID].storySummary;
+    chat_metadata.extensions ||= {};
+    chat_metadata.extensions[EXT_ID] ||= {};
+    chat_metadata.extensions[EXT_ID].storySummary ||= {};
+    return chat_metadata.extensions[EXT_ID].storySummary;
 }
 
 function saveSummaryStore() {
@@ -62,9 +82,7 @@ function parseSummaryJson(raw) {
         .replace(/^```(?:json)?\s*/i, "")
         .replace(/\s*```$/i, "")
         .trim();
-
     try { return JSON.parse(cleaned); } catch {}
-
     const start = cleaned.indexOf('{');
     const end = cleaned.lastIndexOf('}');
     if (start !== -1 && end > start) {
@@ -73,12 +91,26 @@ function parseSummaryJson(raw) {
     return null;
 }
 
-// ================== 快照管理（轻量化标签方案） ==================
+async function executeSlashCommand(command) {
+    try {
+        const executeCmd = window.executeSlashCommands 
+            || window.executeSlashCommandsOnChatInput
+            || (typeof SillyTavern !== 'undefined' && SillyTavern.getContext()?.executeSlashCommands);
+        if (executeCmd) {
+            await executeCmd(command);
+        } else if (typeof STscript === 'function') {
+            await STscript(command);
+        }
+    } catch (e) {
+        console.error('[StorySummary] 执行命令失败:', command, e);
+    }
+}
+
+// ================== 快照管理 ==================
 
 function addSummarySnapshot(store, endMesId) {
     store.summaryHistory ||= [];
-    store.summaryHistory.push({ endMesId, createdAt: Date.now() });
-    // 保留所有记录点（只是数字，几乎不占空间）
+    store.summaryHistory.push({ endMesId });
 }
 
 function getNextEventId(store) {
@@ -99,20 +131,13 @@ function mergeNewData(oldJson, parsed, endMesId) {
     merged.characters.main ||= [];
     merged.characters.relationships ||= [];
     merged.arcs ||= [];
-
+    if (parsed.keywords?.length) {
+        merged.keywords = parsed.keywords.map(k => ({ ...k, _addedAt: endMesId }));
+    }
     (parsed.events || []).forEach(e => {
         e._addedAt = endMesId;
         merged.events.push(e);
     });
-
-    const existingKeywords = new Set(merged.keywords.map(k => k.text));
-    (parsed.keywords || []).forEach(k => {
-        if (!existingKeywords.has(k.text)) {
-            k._addedAt = endMesId;
-            merged.keywords.push(k);
-        }
-    });
-
     const existingMain = new Set(
         (merged.characters.main || []).map(m => typeof m === 'string' ? m : m.name)
     );
@@ -121,7 +146,6 @@ function mergeNewData(oldJson, parsed, endMesId) {
             merged.characters.main.push({ name, _addedAt: endMesId });
         }
     });
-
     const relMap = new Map(
         (merged.characters.relationships || []).map(r => [`${r.from}->${r.to}`, r])
     );
@@ -137,7 +161,6 @@ function mergeNewData(oldJson, parsed, endMesId) {
         }
     });
     merged.characters.relationships = Array.from(relMap.values());
-
     const arcMap = new Map((merged.arcs || []).map(a => [a.name, a]));
     (parsed.arcUpdates || []).forEach(update => {
         const existing = arcMap.get(update.name);
@@ -153,34 +176,24 @@ function mergeNewData(oldJson, parsed, endMesId) {
                 name: update.name,
                 trajectory: update.trajectory,
                 progress: update.progress,
-                moments: update.newMoment
-                    ? [{ text: update.newMoment, _addedAt: endMesId }]
-                    : [],
+                moments: update.newMoment ? [{ text: update.newMoment, _addedAt: endMesId }] : [],
                 _addedAt: endMesId,
             });
         }
     });
     merged.arcs = Array.from(arcMap.values());
-
     return merged;
 }
 
-function rollbackSummaryIfNeeded(chatId) {
+function rollbackSummaryIfNeeded() {
     const { chat } = getContext();
     const currentLength = Array.isArray(chat) ? chat.length : 0;
-    const store = getSummaryStore(chatId);
-
-    if (!store || store.lastSummarizedMesId == null || store.lastSummarizedMesId < 0) {
-        return false;
-    }
-
+    const store = getSummaryStore();
+    if (!store || store.lastSummarizedMesId == null || store.lastSummarizedMesId < 0) return false;
     if (currentLength <= store.lastSummarizedMesId) {
         const deletedCount = store.lastSummarizedMesId + 1 - currentLength;
-
-        if (deletedCount < 3) return false;
-
+        if (deletedCount < 2) return false;
         console.log(`[StorySummary] 删除已总结楼层 ${deletedCount} 个，触发回滚`);
-
         const history = store.summaryHistory || [];
         let targetEndMesId = -1;
         for (let i = history.length - 1; i >= 0; i--) {
@@ -189,7 +202,6 @@ function rollbackSummaryIfNeeded(chatId) {
                 break;
             }
         }
-
         executeFilterRollback(store, targetEndMesId, currentLength);
         return true;
     }
@@ -197,10 +209,15 @@ function rollbackSummaryIfNeeded(chatId) {
 }
 
 function executeFilterRollback(store, targetEndMesId, currentLength) {
+    const oldLastSummarized = store.lastSummarizedMesId ?? -1;
+    const wasHidden = store.hideSummarizedHistory;
+    const oldHideRange = wasHidden ? calcHideRange(oldLastSummarized) : null;
+
     if (targetEndMesId < 0) {
         store.lastSummarizedMesId = -1;
         store.json = null;
         store.summaryHistory = [];
+        store.hideSummarizedHistory = false;
     } else {
         const json = store.json || {};
         json.events = (json.events || []).filter(e => (e._addedAt ?? 0) <= targetEndMesId);
@@ -211,7 +228,6 @@ function executeFilterRollback(store, targetEndMesId, currentLength) {
                 typeof m === 'string' || (m._addedAt ?? 0) <= targetEndMesId
             );
         });
-
         if (json.characters) {
             json.characters.main = (json.characters.main || []).filter(m =>
                 typeof m === 'string' || (m._addedAt ?? 0) <= targetEndMesId
@@ -220,12 +236,18 @@ function executeFilterRollback(store, targetEndMesId, currentLength) {
                 (r._addedAt ?? 0) <= targetEndMesId
             );
         }
-
         store.json = json;
         store.lastSummarizedMesId = targetEndMesId;
+        store.summaryHistory = (store.summaryHistory || []).filter(h => h.endMesId <= targetEndMesId);
+    }
 
-        const history = store.summaryHistory || [];
-        store.summaryHistory = history.filter(h => h.endMesId <= targetEndMesId);
+    if (oldHideRange) {
+        const newHideRange = targetEndMesId >= 0 ? calcHideRange(targetEndMesId) : null;
+        const unhideStart = newHideRange ? newHideRange.end + 1 : 0;
+        const unhideEnd = Math.min(oldHideRange.end, currentLength - 1);
+        if (unhideStart <= unhideEnd) {
+            executeSlashCommand(`/unhide ${unhideStart}-${unhideEnd}`);
+        }
     }
 
     store.updatedAt = Date.now();
@@ -238,7 +260,6 @@ function notifyFrameAfterRollback(store) {
     const { chat } = getContext();
     const totalFloors = Array.isArray(chat) ? chat.length : 0;
     const lastSummarized = store.lastSummarizedMesId ?? -1;
-
     if (store.json) {
         postToFrame({
             type: "SUMMARY_FULL_DATA",
@@ -253,7 +274,6 @@ function notifyFrameAfterRollback(store) {
     } else {
         postToFrame({ type: "SUMMARY_CLEARED", payload: { totalFloors } });
     }
-
     postToFrame({
         type: "SUMMARY_BASE_DATA",
         stats: {
@@ -300,39 +320,33 @@ function flushPendingFrameMessages() {
 function handleFrameMessage(event) {
     const data = event.data;
     if (!data || data.source !== "LittleWhiteBox-StoryFrame") return;
-
     switch (data.type) {
         case "FRAME_READY":
             frameReady = true;
             flushPendingFrameMessages();
             setSummaryGenerating(summaryGenerating);
             break;
-
         case "SETTINGS_OPENED":
             $(".xb-ss-close-btn").hide();
             break;
-
         case "SETTINGS_CLOSED":
             $(".xb-ss-close-btn").show();
             break;
-
         case "REQUEST_GENERATE": {
             const ctx = getContext();
             currentMesId = (ctx.chat?.length ?? 1) - 1;
             runSummaryGeneration(currentMesId, data.config || {});
             break;
         }
-
         case "REQUEST_CANCEL": {
             getStreamingGeneration()?.cancel?.(SUMMARY_SESSION_ID);
             setSummaryGenerating(false);
             postToFrame({ type: "SUMMARY_STATUS", statusText: "已停止" });
             break;
         }
-
         case "REQUEST_CLEAR": {
-            const { chatId, chat } = getContext();
-            const store = getSummaryStore(chatId);
+            const { chat } = getContext();
+            const store = getSummaryStore();
             if (store) {
                 delete store.json;
                 store.lastSummarizedMesId = -1;
@@ -346,42 +360,42 @@ function handleFrameMessage(event) {
             });
             break;
         }
-
         case "CLOSE_PANEL":
             hideOverlay();
             break;
-
         case "UPDATE_SECTION": {
-            const { chatId } = getContext();
-            const store = getSummaryStore(chatId);
+            const store = getSummaryStore();
             if (!store) break;
-
             store.json ||= {};
-            const section = data.section;
-
-            if (section === 'keywords') {
-                store.json.keywords = data.data;
-            } else if (section === 'events') {
-                store.json.events = data.data;
-            } else if (section === 'characters') {
-                store.json.characters = data.data;
-            } else if (section === 'arcs') {
-                store.json.arcs = data.data;
+            if (VALID_SECTIONS.includes(data.section)) {
+                store.json[data.section] = data.data;
             }
-
             store.updatedAt = Date.now();
             saveSummaryStore();
             updateSummaryExtensionPrompt();
             break;
         }
-
         case "EDITOR_OPENED":
             $(".xb-ss-close-btn").hide();
             break;
-
         case "EDITOR_CLOSED":
             $(".xb-ss-close-btn").show();
             break;
+        case "TOGGLE_HIDE_SUMMARIZED": {
+            const store = getSummaryStore();
+            if (!store) break;
+            const lastSummarized = store.lastSummarizedMesId ?? -1;
+            if (lastSummarized < 0) break;
+            store.hideSummarizedHistory = !!data.enabled;
+            saveSummaryStore();
+            if (data.enabled) {
+                const range = calcHideRange(lastSummarized);
+                if (range) executeSlashCommand(`/hide ${range.start}-${range.end}`);
+            } else {
+                executeSlashCommand(`/unhide 0-${lastSummarized}`);
+            }
+            break;
+        }
     }
 }
 
@@ -390,12 +404,9 @@ function handleFrameMessage(event) {
 function createOverlay() {
     if (overlayCreated) return;
     overlayCreated = true;
-    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i
-        .test(navigator.userAgent);
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent);
     const isNarrowScreen = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-    const isMobile = isMobileUA || isNarrowScreen;
-    const overlayHeight = isMobile ? '92.5vh' : '100vh';
-
+    const overlayHeight = (isMobileUA || isNarrowScreen) ? '92.5vh' : '100vh';
     const $overlay = $(`
         <div id="xiaobaix-story-summary-overlay" style="
             position: fixed !important; inset: 0 !important;
@@ -428,7 +439,6 @@ function createOverlay() {
             ">✕</button>
         </div>
     `);
-
     $overlay.on("click", ".xb-ss-backdrop, .xb-ss-close-btn", hideOverlay);
     document.body.appendChild($overlay[0]);
     window.addEventListener("message", handleFrameMessage);
@@ -465,7 +475,6 @@ function addSummaryBtnToMessage(mesId) {
     if (!getSettings().storySummary?.enabled) return;
     const msg = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
     if (!msg || msg.querySelector('.xiaobaix-story-summary-btn')) return;
-
     const btn = createSummaryBtn(mesId);
     if (window.registerButtonToSubContainer?.(mesId, btn)) return;
     msg.querySelector('.flex-container.flex1.alignitemscenter')?.appendChild(btn);
@@ -481,26 +490,26 @@ function initButtonsForAll() {
 
 // ================== 打开面板 ==================
 
-function openPanelForMessage(mesId) {
-    createOverlay();
-    showOverlay();
-
-    const { chat, chatId } = getContext();
-    const store = getSummaryStore(chatId);
+function sendFrameBaseData(store, totalFloors) {
     const lastSummarized = store?.lastSummarizedMesId ?? -1;
-    const totalFloors = chat.length;
-    const eventsCount = store?.json?.events?.length || 0;
-
+    const range = calcHideRange(lastSummarized);
+    const hiddenCount = range ? range.end + 1 : 0;
+    
     postToFrame({
         type: "SUMMARY_BASE_DATA",
         stats: {
             totalFloors,
             summarizedUpTo: lastSummarized + 1,
-            eventsCount,
+            eventsCount: store?.json?.events?.length || 0,
             pendingFloors: totalFloors - lastSummarized - 1,
+            hiddenCount,
         },
+        hideSummarized: store?.hideSummarizedHistory || false,
     });
+}
 
+function sendFrameFullData(store, totalFloors) {
+    const lastSummarized = store?.lastSummarizedMesId ?? -1;
     if (store?.json) {
         postToFrame({
             type: "SUMMARY_FULL_DATA",
@@ -513,12 +522,18 @@ function openPanelForMessage(mesId) {
             },
         });
     } else {
-        postToFrame({
-            type: "SUMMARY_CLEARED",
-            payload: { totalFloors },
-        });
+        postToFrame({ type: "SUMMARY_CLEARED", payload: { totalFloors } });
     }
+}
 
+function openPanelForMessage(mesId) {
+    createOverlay();
+    showOverlay();
+    const { chat } = getContext();
+    const store = getSummaryStore();
+    const totalFloors = chat.length;
+    sendFrameBaseData(store, totalFloors);
+    sendFrameFullData(store, totalFloors);
     setSummaryGenerating(summaryGenerating);
 }
 
@@ -528,68 +543,43 @@ function buildIncrementalSlice(targetMesId, lastSummarizedMesId) {
     const { chat, name1, name2 } = getContext();
     const start = Math.max(0, (lastSummarizedMesId ?? -1) + 1);
     const end = Math.min(targetMesId, chat.length - 1);
-
-    if (start > end) {
-        return { text: "", count: 0, range: "" };
-    }
-
+    if (start > end) return { text: "", count: 0, range: "", endMesId: -1 };
     const userLabel = name1 || '用户';
     const charLabel = name2 || '角色';
-
     const slice = chat.slice(start, end + 1);
     const text = slice.map((m, i) => {
         let who;
-
-        if (m.is_user) {
-            who = `【${m.name || userLabel}】`;
-        } else if (m.is_system) {
-            who = '【系统】';
-        } else {
-            who = `【${m.name || charLabel}】`;
-        }
-
+        if (m.is_user) who = `【${m.name || userLabel}】`;
+        else if (m.is_system) who = '【系统】';
+        else who = `【${m.name || charLabel}】`;
         return `#${start + i + 1} ${who}\n${m.mes}`;
     }).join('\n\n');
-
-    return {
-        text,
-        count: slice.length,
-        range: `${start + 1}-${end + 1}楼`,
-        startMesId: start,
-        endMesId: end,
-    };
+    return { text, count: slice.length, range: `${start + 1}-${end + 1}楼`, endMesId: end };
 }
 
 function formatExistingSummaryForAI(store) {
     if (!store?.json) return "（空白，这是首次总结）";
-
     const data = store.json;
     const parts = [];
-
     if (data.events?.length) {
         parts.push("【已记录事件】");
         data.events.forEach((ev, i) => parts.push(`${i + 1}. [${ev.timeLabel}] ${ev.title}：${ev.summary}`));
     }
-
     if (data.characters?.main?.length) {
         const names = data.characters.main.map(m => typeof m === 'string' ? m : m.name);
         parts.push(`\n【主要角色】${names.join("、")}`);
     }
-
     if (data.characters?.relationships?.length) {
         parts.push("【人物关系】");
         data.characters.relationships.forEach(r => parts.push(`- ${r.from} → ${r.to}：${r.label}（${r.trend}）`));
     }
-
     if (data.arcs?.length) {
         parts.push("【角色弧光】");
         data.arcs.forEach(a => parts.push(`- ${a.name}：${a.trajectory}（进度${Math.round(a.progress * 100)}%）`));
     }
-
     if (data.keywords?.length) {
         parts.push(`\n【关键词】${data.keywords.map(k => k.text).join("、")}`);
     }
-
     return parts.join("\n") || "（空白，这是首次总结）";
 }
 
@@ -606,9 +596,7 @@ function buildIncrementalSummaryTop64(existingSummary, newHistoryText, historyRa
   - **中 impact** → 发展、有意义的铺垫「没改当前局面，但以后必须依赖它推大事件」
   - **低 impact** → 日常但有信息量，藏有角色/关系/伏笔上的小节拍「删了不影响大事件逻辑，但影响人物厚度/氛围」
   - **无 impact** → 不记（没有信息增量）`;
-
     const msg2 = `明白，我只输出新增内容，请提供已有总结和新对话内容。`;
-
     const msg3 = `<已有总结>
 ${existingSummary}
 </已有总结>
@@ -619,7 +607,7 @@ ${newHistoryText}
 
 请只输出【新增】的内容，JSON格式：
 {
-  "keywords": [{"text": "新关键词", "weight": "核心|重要|一般"}],
+  "keywords": [{"text": "根据已有总结和新对话内容，输出当前最能概括全局的5-10个关键词,作为整个故事的标签", "weight": "核心|重要|一般"}],
   "events": [
     {
       "id": "evt-序号",
@@ -644,19 +632,16 @@ ${newHistoryText}
 - 如果某类没有新增，返回空数组
 - 本次events的id从 evt-${nextEventId} 开始编号
 - 只输出一个合法 JSON 字符串，内部不要使用英文双引号`;
-
     const msg4 = `了解，开始生成JSON:`;
-
     return b64UrlEncode(`user={${msg1}};assistant={${msg2}};user={${msg3}};assistant={${msg4}}`);
 }
 
 function getSummaryPanelConfig() {
     const defaults = {
-        api: { provider: 'st', url: '', key: '', model: '', modelCache: []},
+        api: { provider: 'st', url: '', key: '', model: '', modelCache: [] },
         gen: { temperature: null, top_p: null, top_k: null, presence_penalty: null, frequency_penalty: null },
         trigger: { enabled: false, interval: 20, timing: 'after_ai' },
     };
-
     try {
         const raw = localStorage.getItem('summary_panel_config');
         if (!raw) return defaults;
@@ -676,61 +661,41 @@ async function runSummaryGeneration(mesId, configFromFrame) {
         postToFrame({ type: "SUMMARY_STATUS", statusText: "上一轮总结仍在进行中..." });
         return false;
     }
-
     setSummaryGenerating(true);
-
     const cfg = configFromFrame || {};
-    const { chatId } = getContext();
-    const store = getSummaryStore(chatId);
+    const store = getSummaryStore();
     const lastSummarized = store?.lastSummarizedMesId ?? -1;
     const slice = buildIncrementalSlice(mesId, lastSummarized);
-
     if (slice.count === 0) {
         postToFrame({ type: "SUMMARY_STATUS", statusText: "没有新的对话需要总结" });
         setSummaryGenerating(false);
         return true;
     }
-
     postToFrame({ type: "SUMMARY_STATUS", statusText: `正在总结 ${slice.range}（${slice.count}楼新内容）...` });
-
     const existingSummary = formatExistingSummaryForAI(store);
     const nextEventId = getNextEventId(store);
     const top64 = buildIncrementalSummaryTop64(existingSummary, slice.text, slice.range, nextEventId);
-
     const args = { as: "user", nonstream: "true", top64, id: SUMMARY_SESSION_ID };
-
     const apiCfg = cfg.api || {};
     const genCfg = cfg.gen || {};
-
-    const providerMap = {
-        openai: "openai",
-        google: "gemini",
-        gemini: "gemini",
-        claude: "claude",
-        anthropic: "claude",
-        deepseek: "deepseek",
-        cohere: "cohere",
-        custom: "custom",
-    };
-    const mappedApi = providerMap[String(apiCfg.provider || "").toLowerCase()];
+    const mappedApi = PROVIDER_MAP[String(apiCfg.provider || "").toLowerCase()];
     if (mappedApi) {
         args.api = mappedApi;
         if (apiCfg.url) args.apiurl = apiCfg.url;
         if (apiCfg.key) args.apipassword = apiCfg.key;
         if (apiCfg.model) args.model = apiCfg.model;
     }
-
     if (genCfg.temperature != null) args.temperature = genCfg.temperature;
     if (genCfg.top_p != null) args.top_p = genCfg.top_p;
     if (genCfg.top_k != null) args.top_k = genCfg.top_k;
-
+    if (genCfg.presence_penalty != null) args.presence_penalty = genCfg.presence_penalty;
+    if (genCfg.frequency_penalty != null) args.frequency_penalty = genCfg.frequency_penalty;
     const streamingGen = getStreamingGeneration();
     if (!streamingGen) {
         postToFrame({ type: "SUMMARY_ERROR", message: "生成模块未加载" });
         setSummaryGenerating(false);
         return false;
     }
-
     let raw;
     try {
         raw = await streamingGen.xbgenrawCommand(args, "");
@@ -739,13 +704,11 @@ async function runSummaryGeneration(mesId, configFromFrame) {
         setSummaryGenerating(false);
         return false;
     }
-
     if (!raw?.trim()) {
         postToFrame({ type: "SUMMARY_ERROR", message: "AI返回为空" });
         setSummaryGenerating(false);
         return false;
     }
-
     const parsed = parseSummaryJson(raw);
     if (!parsed) {
         console.error("[LittleWhiteBox] JSON解析失败", raw);
@@ -753,16 +716,13 @@ async function runSummaryGeneration(mesId, configFromFrame) {
         setSummaryGenerating(false);
         return false;
     }
-
     const oldJson = store?.json || {};
     const merged = mergeNewData(oldJson, parsed, slice.endMesId);
-
     store.lastSummarizedMesId = slice.endMesId;
     store.json = merged;
     store.updatedAt = Date.now();
     addSummarySnapshot(store, slice.endMesId);
     saveSummaryStore();
-
     postToFrame({
         type: "SUMMARY_FULL_DATA",
         payload: {
@@ -773,12 +733,10 @@ async function runSummaryGeneration(mesId, configFromFrame) {
             lastSummarizedMesId: slice.endMesId,
         },
     });
-
     postToFrame({
         type: "SUMMARY_STATUS",
         statusText: `已更新至 ${slice.endMesId + 1} 楼 · ${merged.events?.length || 0} 个事件`,
     });
-
     const { chat } = getContext();
     const totalFloors = Array.isArray(chat) ? chat.length : 0;
     postToFrame({
@@ -790,7 +748,6 @@ async function runSummaryGeneration(mesId, configFromFrame) {
             pendingFloors: totalFloors - slice.endMesId - 1,
         },
     });
-
     updateSummaryExtensionPrompt();
     setSummaryGenerating(false);
     return true;
@@ -802,7 +759,6 @@ async function maybeAutoRunSummary(reason) {
     const { chatId, chat } = getContext();
     if (!chatId || !Array.isArray(chat)) return;
     if (!getSettings().storySummary?.enabled) return;
-
     const cfgAll = getSummaryPanelConfig();
     const trig = cfgAll.trigger || {};
     if (!trig.enabled) return;
@@ -810,12 +766,10 @@ async function maybeAutoRunSummary(reason) {
     if (trig.timing === 'before_user' && reason !== 'before_user') return;
     if (trig.timing === 'manual') return;
     if (isSummaryGenerating()) return;
-
-    const store = getSummaryStore(chatId);
+    const store = getSummaryStore();
     const lastSummarized = store?.lastSummarizedMesId ?? -1;
     const pending = chat.length - lastSummarized - 1;
     if (pending < (trig.interval || 1)) return;
-
     console.log(`[LittleWhiteBox] 自动触发剧情总结: reason=${reason}, pending=${pending}, interval=${trig.interval}`);
     await autoRunSummaryWithRetry(chat.length - 1, { api: cfgAll.api, gen: cfgAll.gen, trigger: trig });
 }
@@ -825,10 +779,7 @@ async function autoRunSummaryWithRetry(targetMesId, configForRun) {
         if (await runSummaryGeneration(targetMesId, configForRun)) return;
         if (attempt < 3) await sleep(1000);
     }
-
-    if (typeof STscript === 'function') {
-        try { await STscript('/echo severity=error 剧情总结失败（已自动重试 3 次）。请稍后再试。'); } catch {}
-    }
+    await executeSlashCommand('/echo severity=error 剧情总结失败（已自动重试 3 次）。请稍后再试。');
 }
 
 // ================== extension_prompts 注入 ==================
@@ -837,56 +788,44 @@ function formatSummaryForPrompt(store) {
     const data = store.json || {};
     const parts = [];
     parts.push("【此处是对以上可见历史，及因记忆限制不可见历史的所有总结】");
-
     if (data.keywords?.length) {
         parts.push(`关键词：${data.keywords.map(k => k.text).join(" / ")}`);
     }
-
     if (data.events?.length) {
         const lines = data.events.map(ev => `- [${ev.timeLabel}] ${ev.title}：${ev.summary}`).join("\n");
         parts.push(`事件：\n${lines}`);
     }
-
     if (data.arcs?.length) {
         const lines = data.arcs.map(a => `- ${a.name}：${a.trajectory}`).join("\n");
         parts.push(`角色状态：\n${lines}`);
     }
-
     return `<剧情总结>\n${parts.join("\n\n")}\n</剧情总结>`;
 }
-
 
 function updateSummaryExtensionPrompt() {
     if (!getSettings().storySummary?.enabled) {
         delete extension_prompts[SUMMARY_PROMPT_KEY];
         return;
     }
-
-    const { chatId, chat } = getContext();
-    const store = getSummaryStore(chatId);
+    const { chat } = getContext();
+    const store = getSummaryStore();
     if (!store?.json) {
         delete extension_prompts[SUMMARY_PROMPT_KEY];
         return;
     }
-
     const text = formatSummaryForPrompt(store);
     if (!text.trim()) {
         delete extension_prompts[SUMMARY_PROMPT_KEY];
         return;
     }
-
     const lastIdx = store.lastSummarizedMesId ?? 0;
     const length = Array.isArray(chat) ? chat.length : 0;
-
-    // 数据不一致时不注入
     if (lastIdx >= length) {
         delete extension_prompts[SUMMARY_PROMPT_KEY];
         return;
     }
-
     let depth = length - lastIdx - 1;
-    if (!Number.isFinite(depth) || depth < 0) depth = 0;
-
+    if (depth < 0) depth = 0;
     extension_prompts[SUMMARY_PROMPT_KEY] = {
         value: text,
         position: extension_prompt_types.IN_CHAT,
@@ -901,56 +840,62 @@ function clearSummaryExtensionPrompt() {
 
 // ================== 事件绑定 ==================
 
+function createMessageEventHandler(reason) {
+    return () => {
+        setTimeout(() => {
+            const { chat } = getContext();
+            lastKnownChatLength = Array.isArray(chat) ? chat.length : 0;
+            maybeAutoRunSummary(reason);
+        }, 1000);
+    };
+}
+
+function applySummarizedVisibility(store) {
+    const lastSummarized = store?.lastSummarizedMesId ?? -1;
+    if (lastSummarized < 0 || !store?.hideSummarizedHistory) return;
+    const range = calcHideRange(lastSummarized);
+    if (range) executeSlashCommand(`/hide ${range.start}-${range.end}`);
+}
+
 function registerEvents() {
     initButtonsForAll();
-
     eventSource.on(event_types.CHAT_CHANGED, () => {
         setTimeout(() => {
             const { chat } = getContext();
             lastKnownChatLength = Array.isArray(chat) ? chat.length : 0;
             initButtonsForAll();
             updateSummaryExtensionPrompt();
+            const store = getSummaryStore();
+            applySummarizedVisibility(store);
+            if (frameReady) {
+                sendFrameBaseData(store, lastKnownChatLength);
+                sendFrameFullData(store, lastKnownChatLength);
+            }
         }, 80);
     });
-
-    // 监听消息删除
     eventSource.on(event_types.MESSAGE_DELETED, () => {
         setTimeout(() => {
-            const { chat, chatId } = getContext();
+            const { chat } = getContext();
             const currentLength = Array.isArray(chat) ? chat.length : 0;
-
             if (currentLength < lastKnownChatLength) {
-                rollbackSummaryIfNeeded(chatId);
+                rollbackSummaryIfNeeded();
             }
             lastKnownChatLength = currentLength;
             updateSummaryExtensionPrompt();
         }, 100);
     });
-
-    // 更新长度追踪
-    eventSource.on(event_types.MESSAGE_RECEIVED, () => {
-        setTimeout(() => {
-            const { chat } = getContext();
-            lastKnownChatLength = Array.isArray(chat) ? chat.length : 0;
-            maybeAutoRunSummary('after_ai');
-        }, 1000);
-    });
-
-    eventSource.on(event_types.MESSAGE_SENT, () => {
-        setTimeout(() => {
-            const { chat } = getContext();
-            lastKnownChatLength = Array.isArray(chat) ? chat.length : 0;
-            maybeAutoRunSummary('before_user');
-        }, 1000);
-    });
-
+    eventSource.on(event_types.MESSAGE_RECEIVED, createMessageEventHandler('after_ai'));
+    eventSource.on(event_types.MESSAGE_SENT, createMessageEventHandler('before_user'));
     const buttonHandler = data => {
         setTimeout(() => {
             const mesId = data?.element ? $(data.element).attr("mesid") : data?.messageId;
-            mesId == null ? initButtonsForAll() : addSummaryBtnToMessage(mesId);
+            if (mesId != null) {
+                addSummaryBtnToMessage(mesId);
+            } else {
+                initButtonsForAll();
+            }
         }, 50);
     };
-
     [
         event_types.USER_MESSAGE_RENDERED,
         event_types.CHARACTER_MESSAGE_RENDERED,
@@ -959,7 +904,6 @@ function registerEvents() {
         event_types.MESSAGE_SWIPED,
         event_types.MESSAGE_EDITED,
     ].forEach(t => eventSource.on(t, buttonHandler));
-
     $(document).on("xiaobaix:storySummary:toggle", (_e, enabled) => {
         if (enabled) {
             initButtonsForAll();

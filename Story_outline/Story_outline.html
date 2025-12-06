@@ -1779,18 +1779,17 @@
             高级设置 - 提示词模板
           </div>
           <div id="adv-content" style="display:none">
-            <div class="set-hint" style="margin:12px 0">点击条目编辑提示词模板，每个字段对应一轮对话。修改后点击「保存」生效。</div>
-            <div class="set-sec-t" style="font-size:13px;margin-bottom:8px">变量说明</div>
-            <div class="set-hint" style="margin-bottom:12px;font-size:11px;line-height:1.8">
-              使用 <code style="background:#e0e0e0;padding:1px 4px;border-radius:2px">${'${变量名}'}</code> 格式引用变量。<br>
-              <b>通用变量：</b>worldInfo（世界书+角色描述）、history(N)（最近N条聊天）、_outline（剧情大纲）<br>
-              <b>短信/邀请：</b>contactName、userName、smsHistoryContent、userMessage、_character、targetLocation<br>
-              <b>总结压缩：</b>existingSummaryContent、conversationText<br>
-              <b>NPC生成：</b>strangerName、strangerInfo<br>
-              <b>陌路人提取：</b>_existingNames<br>
+            <div class="set-hint" style="margin:12px 0">点击条目编辑4-role消息模板，修改后点击「保存」生效</div>
+            <div class="set-sec-t" style="font-size:13px;margin-bottom:8px">变量参考</div>
+            <div class="set-hint" style="margin-bottom:12px;font-family:monospace;font-size:11px;line-height:1.8">
+              <b>通用：</b>${worldInfo} ${history(N)} ${outline(content)} ${character(name,content)}<br>
+              <b>短信/邀请：</b>contactName, userName, smsHistoryContent, userMessage, targetLocation<br>
+              <b>总结：</b>existingSummaryContent, conversationText<br>
+              <b>NPC：</b>strangerName, strangerInfo<br>
+              <b>陌路人：</b>existingContacts, existingStrangers, _existingNames<br>
               <b>世界生成：</b>playerRequests<br>
               <b>世界推演：</b>currentWorldData<br>
-              <b>场景切换：</b>_prevLocation、_targetLocation、_timeline、playerAction、lLevel
+              <b>场景切换：</b>prevLocationName/Info, targetLocationName/Type/Info, stage, _timeline, playerAction, lLevel
             </div>
             <div class="set-sec-t" style="font-size:13px;margin-bottom:8px">提示词模板</div>
             <div id="prompt-list"></div>
@@ -1817,21 +1816,6 @@
         <div class="ed-err" id="data-edit-err"></div>
       </div>
       <div class="modal-ft fc"><button class="btn btn-s m-cancel">取消</button><button class="btn btn-s btn-p" id="data-edit-save">保存</button></div>
-    </div>
-  </div>
-
-  <!-- 提示词模板编辑模态框 -->
-  <div class="modal" id="m-prompt-edit">
-    <div class="modal-bd"></div>
-    <div class="modal-p lg">
-      <div class="modal-hd fc">
-        <h2 id="prompt-edit-title">编辑提示词模板</h2><button class="modal-x fcc">✕</button>
-      </div>
-      <div class="modal-by ofy" style="max-height:60vh">
-        <div id="prompt-edit-fields"></div>
-        <div class="ed-err" id="prompt-edit-err"></div>
-      </div>
-      <div class="modal-ft fc"><button class="btn btn-s m-cancel">取消</button><button class="btn btn-s" id="prompt-edit-reset">恢复默认</button><button class="btn btn-s btn-p" id="prompt-edit-save">保存</button></div>
     </div>
   </div>
 
@@ -3795,6 +3779,7 @@
       const item = dataKeys.find(([k]) => k === key);
       if (!item) return;
       editingKey = key;
+      editingPromptKey = null;
       editingJsonKey = null;
       $('data-edit-title').textContent = `编辑 - ${item[1]}`;
       $('data-edit-ta').value = JSON.stringify(item[3](), null, 2);
@@ -3803,6 +3788,31 @@
       openM('m-data-edit');
     }
     $('data-edit-save').onclick = () => {
+      // 处理提示词模板编辑（分隔符格式）
+      if (editingPromptKey) {
+        try {
+          let text = $('data-edit-ta').value;
+          // 移除开头的注释行
+          text = text.replace(/^\/\/.*\n/gm, '');
+          text = text.trim();
+          const parts = text.split(/\n={5,}\n/);
+          const template = promptTemplates[editingPromptKey];
+          const keys = Object.keys(template);
+          if (parts.length !== keys.length) {
+            throw new Error(`需要 ${keys.length} 个部分（用 ===== 分隔），当前有 ${parts.length} 个`);
+          }
+          keys.forEach((k, i) => {
+            template[k] = parts[i];
+          });
+          savePromptTemplates();
+          closeM('m-data-edit');
+          editingPromptKey = null;
+        } catch (e) {
+          $('data-edit-err').textContent = `格式错误: ${e.message}`;
+          $('data-edit-err').classList.add('vis');
+        }
+        return;
+      }
       // 处理JSON模板编辑
       if (editingJsonKey) {
         promptTemplates.json[editingJsonKey] = $('data-edit-ta').value;
@@ -3925,60 +3935,239 @@
     // ================== 高级设置 - 提示词模板 ==================
     const defaultPromptTemplates = {
       sms: {
-        u1: '现在是短信模拟场景。\n\n${_outline}${_outline ? \'\\n\\n\' : \'\'}${worldInfo}\n\n${history(historyCount)}\n\n以上是设定和聊天历史，遵守人设，忽略规则类信息和非${contactName}经历的内容。以${contactName}身份回复${userName}的短信（仅输出回复内容）。字数精简，10～30字左右。${_character ? `\\n\\n${_character}` : \'\'}',
+        u1: `现在是短信模拟场景。
+
+\${_outline}\${_outline ? '\\n\\n' : ''}\${worldInfo}
+
+\${history(historyCount)}
+
+以上是设定和聊天历史，遵守人设，忽略规则类信息和非\${contactName}经历的内容。以\${contactName}身份回复\${userName}的短信（仅输出回复内容）。字数精简，10～30字左右。\${_character ? \`\\n\\n\${_character}\` : ''}`,
         a1: '明白，我只输出${contactName}的回复短信，请提供已有短信历史。',
-        u2: '${smsHistoryContent}\n\n<${userName}发来的新短信>\n${userMessage}',
+        u2: `\${smsHistoryContent}
+
+<\${userName}发来的新短信>
+\${userMessage}`,
         a2: '了解，开始以${contactName}进行回复:'
       },
       summary: {
-        u1: '你是剧情记录员。根据新短信聊天内容提取新增剧情要素。\n\n任务：只根据新对话输出增量内容，不重复已有总结。\n事件筛选：只记录有信息量的完整事件。',
+        u1: `你是剧情记录员。根据新短信聊天内容提取新增剧情要素。
+
+任务：只根据新对话输出增量内容，不重复已有总结。
+事件筛选：只记录有信息量的完整事件。`,
         a1: '明白，我只输出新增内容，请提供已有总结和新对话内容。',
-        u2: '${existingSummaryContent}\n\n<新对话内容>\n${conversationText}\n</新对话内容>\n\n输出要求：\n- 只输出一个合法JSON对象\n- 内部文本使用中文单引号\n\n格式：{"summary": "角色A向角色B打招呼，并表示会守护在旁边"}',
+        u2: `\${existingSummaryContent}
+
+<新对话内容>
+\${conversationText}
+</新对话内容>
+
+输出要求：
+- 只输出一个合法JSON对象
+- 内部文本使用中文单引号
+
+格式：{"summary": "角色A向角色B打招呼，并表示会守护在旁边"}`,
         a2: '了解，开始生成JSON:'
       },
       invite: {
-        u1: '你是短信模拟器。${userName}正在邀请${contactName}前往「${targetLocation}」。\n\n${_outline}${_outline ? \'\\n\\n\' : \'\'}${worldInfo}\n\n${history(historyCount)}${_character ? `\\n\\n${_character}` : \'\'}\n\n根据${contactName}的人设、处境、与${userName}的关系，判断是否答应。\n\n**判断参考**：亲密度、当前事务、地点危险性、角色性格\n\n输出JSON："cot"(思维链)、"invite"(true/false)、"reply"(10-50字回复)\n\n模板：${INVITE_JSON_TEMPLATE}',
+        u1: `你是短信模拟器。\${userName}正在邀请\${contactName}前往「\${targetLocation}」。
+
+\${_outline}\${_outline ? '\\n\\n' : ''}\${worldInfo}
+
+\${history(historyCount)}\${_character ? \`\\n\\n\${_character}\` : ''}
+
+根据\${contactName}的人设、处境、与\${userName}的关系，判断是否答应。
+
+**判断参考**：亲密度、当前事务、地点危险性、角色性格
+
+输出JSON："cot"(思维链)、"invite"(true/false)、"reply"(10-50字回复)
+
+模板：\${INVITE_JSON_TEMPLATE}`,
         a1: '明白，我将分析${contactName}是否答应并以角色语气回复。请提供短信历史。',
-        u2: '${smsHistoryContent}\n\n<${userName}发来的新短信>\n我邀请你前往「${targetLocation}」，你能来吗？',
+        u2: `\${smsHistoryContent}
+
+<\${userName}发来的新短信>
+我邀请你前往「\${targetLocation}」，你能来吗？`,
         a2: '了解，开始生成JSON:'
       },
       npc: {
         u1: '你是TRPG角色生成器。将陌生人【${strangerName} - ${strangerInfo}】扩充为完整NPC。基于世界观和剧情大纲，输出严格JSON。',
         a1: '明白。请提供上下文，我将严格按JSON输出，不含多余文本。',
-        u2: '${worldInfo}\n\n${history(historyCount)}\n\n剧情秘密大纲（*从这里提取线索赋予角色秘密*）：\n${_outline}\n\n需要生成：【${strangerName} - ${strangerInfo}】\n\n输出要求：\n1. 合法JSON\n2. 内部用单引号，禁用双引号\n3. aliases须含简称或绰号\n\n模板：${NPC_JSON_TEMPLATE}',
+        u2: `\${worldInfo}
+
+\${history(historyCount)}
+
+剧情秘密大纲（*从这里提取线索赋予角色秘密*）：
+\${_outline}
+
+需要生成：【\${strangerName} - \${strangerInfo}】
+
+输出要求：
+1. 合法JSON
+2. 内部用单引号，禁用双引号
+3. aliases须含简称或绰号
+
+模板：\${NPC_JSON_TEMPLATE}`,
         a2: '了解，开始生成JSON:'
       },
       strangers: {
         s: '你是TRPG数据整理助手。从剧情文本中提取玩家遇到的陌生人/NPC，整理为JSON数组。',
         u1: '请准备提取NPC列表。我将提供世界观和玩家经历。',
         a1: '明白。请提供【世界观】和【剧情经历】，我将提取角色并以JSON数组输出。',
-        u2: '### 上下文\n\n**1. 世界观：**\n${worldInfo}\n\n**2. 玩家经历：**\n${history(historyCount)}${_outline ? `\\n\\n**剧情大纲：**\\n${_outline}` : \'\'}${_existingNames}\n\n### 输出要求\n\n1. JSON数组\n2. 只提取有具体称呼的角色\n3. 每个角色只需name/location/info\n4. 无新角色返回 []\n\n模板：${STRANGER_JSON_TEMPLATE}'
+        u2: `### 上下文
+
+**1. 世界观：**
+\${worldInfo}
+
+**2. 玩家经历：**
+\${history(historyCount)}\${_outline ? \`\\n\\n**剧情大纲：**\\n\${_outline}\` : ''}\${_existingNames}
+
+### 输出要求
+
+1. JSON数组
+2. 只提取有具体称呼的角色
+3. 每个角色只需name/location/info
+4. 无新角色返回 []
+
+模板：\${STRANGER_JSON_TEMPLATE}`
       },
       worldgen: {
-        u1: '你是TRPG动态叙事引擎。根据【题材风格】构建逻辑自洽、曲折吸引人的初始剧情状态。\n\n核心原则：\n1. **自适应基调**：分析题材风格(恐怖→不可知,日常→羁绊,脑洞→反直觉)。严禁轻松题材强制引入灾难。\n2. **真相结构**（L1-L7）：表象→痕迹→机制→节点→核心→驱动→后果\n3. **时间轴**：4-7阶段，演变符合题材\n4. **结局**：Default/Intervention/Resolution\n5. **世界**：News至少3条，Maps至少7个地点\n6. **历史参考**：参考玩家经历构建世界\n\n输出：仅纯净合法JSON，禁止解释文字或Markdown。',
+        u1: `你是TRPG动态叙事引擎。根据【题材风格】构建逻辑自洽、曲折吸引人的初始剧情状态。
+
+核心原则：
+1. **自适应基调**：分析题材风格(恐怖→不可知,日常→羁绊,脑洞→反直觉)。严禁轻松题材强制引入灾难。
+2. **真相结构**（L1-L7）：表象→痕迹→机制→节点→核心→驱动→后果
+3. **时间轴**：4-7阶段，演变符合题材
+4. **结局**：Default/Intervention/Resolution
+5. **世界**：News至少3条，Maps至少7个地点
+6. **历史参考**：参考玩家经历构建世界
+
+输出：仅纯净合法JSON，禁止解释文字或Markdown。`,
         a1: '明白。我将分析题材风格，遵循L1→L7模型构建JSON。请提供设定。',
-        u2: '【世界观与要求】：\n${worldInfo}\n\n【玩家经历参考】：\n${history(historyCount)}\n\n【玩家要求】：\n${playerRequests || \'无特殊要求\'}\n\n【JSON模板】：\n${WORLD_GEN_JSON_TEMPLATE}',
+        u2: `【世界观与要求】：
+\${worldInfo}
+
+【玩家经历参考】：
+\${history(historyCount)}
+
+【玩家要求】：
+\${playerRequests || '无特殊要求'}
+
+【JSON模板】：
+\${WORLD_GEN_JSON_TEMPLATE}`,
         a2: '严格生成JSON，不擅自修改。JSON生成开始:'
       },
       worldsim: {
-        u1: '你是世界演化引擎。推动时间流逝，根据【玩家历史行为】和【既定命运】计算世界下一状态。\n\n演化逻辑：\n1. **历史回顾**：分析玩家行为影响（摧毁据点→变废墟，忽略威胁→恶化）\n2. **真相迭代**：L5-L7保持不变；L1-L2大幅更新；L3-L4适度更新\n3. **地图重构**：Main保留原名更新info；约30%的Sub结构性变化\n4. **时间推进**：Stage推进，生成全新News\n\n输出：完整JSON，结构与模板一致，禁止解释文字。',
+        u1: `你是世界演化引擎。推动时间流逝，根据【玩家历史行为】和【既定命运】计算世界下一状态。
+
+演化逻辑：
+1. **历史回顾**：分析玩家行为影响（摧毁据点→变废墟，忽略威胁→恶化）
+2. **真相迭代**：L5-L7保持不变；L1-L2大幅更新；L3-L4适度更新
+3. **地图重构**：Main保留原名更新info；约30%的Sub结构性变化
+4. **时间推进**：Stage推进，生成全新News
+
+输出：完整JSON，结构与模板一致，禁止解释文字。`,
         a1: '明白。我将读取当前状态和玩家历史，推演变化。保留核心，更新30%次级节点，刷新新闻和浅层线索。请提供数据。',
-        u2: '【世界观设定】：\n${worldInfo}\n\n【玩家历史】：\n${history(historyCount)}\n\n【当前世界状态】：\n${currentWorldData || \'{}\'}\n\n【JSON模板】：\n${WORLD_SIM_JSON_TEMPLATE}',
+        u2: `【世界观设定】：
+\${worldInfo}
+
+【玩家历史】：
+\${history(historyCount)}
+
+【当前世界状态】：
+\${currentWorldData || '{}'}
+
+【JSON模板】：
+\${WORLD_SIM_JSON_TEMPLATE}`,
         a2: '演化计算完成。JSON output start:'
       },
       scene: {
-        u1: '你是TRPG场景管理器。处理玩家移动请求，结算上一地点后果，构建新地点场景。\n\n处理逻辑：\n1. **历史结算**：分析玩家最后行为，计算偏差值(0-4无关/5-10干扰/11-20转折)，描述离开后地点变化\n2. **故事生成**：用L${lLevel}级元素生成Side Story（表层钩子+里层真相）\n3. **局部地图**：Description全景式描写，节点用[[名]]包裹；生成3-6个节点和0-3个NPC\n\n输出：仅符合模板的JSON，禁止解释文字。',
+        u1: `你是TRPG场景管理器。处理玩家移动请求，结算上一地点后果，构建新地点场景。
+
+处理逻辑：
+1. **历史结算**：分析玩家最后行为，计算偏差值(0-4无关/5-10干扰/11-20转折)，描述离开后地点变化
+2. **故事生成**：用L\${lLevel}级元素生成Side Story（表层钩子+里层真相）
+3. **局部地图**：Description全景式描写，节点用[[名]]包裹；生成3-6个节点和0-3个NPC
+
+输出：仅符合模板的JSON，禁止解释文字。`,
         a1: '明白。我将结算偏差值，基于L${lLevel}深度生成Side Story和局部地图JSON。请发送上下文。',
-        u2: '【上一地点】：\n${_prevLocation}\n\n【世界设定】：\n${worldInfo}\n\n【剧情大纲】：\n${_outline || \'无大纲\'}\n\n【当前时间段】：\n${_timeline}\n\n【历史记录】：\n${history(historyCount)}\n\n【玩家行动意图】：\n${playerAction || \'无特定意图\'}\n\n【目标地点】：\n${_targetLocation}\n\n【JSON模板】：\n${SCENE_SWITCH_JSON_TEMPLATE}',
+        u2: `【上一地点】：
+\${_prevLocation}
+
+【世界设定】：
+\${worldInfo}
+
+【剧情大纲】：
+\${_outline || '无大纲'}
+
+【当前时间段】：
+\${_timeline}
+
+【历史记录】：
+\${history(historyCount)}
+
+【玩家行动意图】：
+\${playerAction || '无特定意图'}
+
+【目标地点】：
+\${_targetLocation}
+
+【JSON模板】：
+\${SCENE_SWITCH_JSON_TEMPLATE}`,
         a2: 'OK, JSON generate start:'
       },
       json: {
         invite: '{ "cot": "思维链分析...", "invite": true, "reply": "回复短信内容" }',
-        npc: '{\n  "name": "角色全名", "aliases": ["别名1", "别名2"],\n  "intro": "一句话外貌与职业", "background": "角色生平",\n  "persona": { "keywords": ["性格1","性格2"], "speaking_style": "说话风格、口癖", "motivation": "核心驱动力" },\n  "game_data": { "stance": "阵营态度", "secret": "掌握的秘密" }\n}',
+        npc: `{
+  "name": "角色全名", "aliases": ["别名1", "别名2"],
+  "intro": "一句话外貌与职业", "background": "角色生平",
+  "persona": { "keywords": ["性格1","性格2"], "speaking_style": "说话风格、口癖", "motivation": "核心驱动力" },
+  "game_data": { "stance": "阵营态度", "secret": "掌握的秘密" }
+}`,
         stranger: '[{ "name": "角色名", "location": "当前地点", "info": "一句话简介" }]',
-        worldgen: '{\n  "meta": {\n    "truth": { "overview": "一句话核心真相",\n      "onion_layers": {\n        "L1_Surface": [{ "desc": "表象", "logic": "实际情况" }],\n        "L2_Traces": [{ "desc": "物证", "logic": "揭示信息" }],\n        "L3_Mechanism": [{ "desc": "机制", "logic": "指向核心" }],\n        "L4_Nodes": [{ "desc": "节点", "logic": "作用" }],\n        "L5_Core": { "desc": "核心源头", "logic": "能力" },\n        "L6_Drive": { "desc": "驱动力", "logic": "为何产生" },\n        "L7_Consequence": { "desc": "无人干涉结局", "logic": "后果" }\n      }\n    },\n    "outcomes": { "default_end": "顺其自然", "intervention_end": "部分介入", "resolution_end": "完美解决" }\n  },\n  "timeline": [{ "stage": 0, "state": "状态", "event": "事件" }],\n  "world": { "news": [{ "title": "标题", "time": "时间", "content": "内容" }] },\n  "maps": { "outdoor": { "description": "全景描写含[[节点名]]", "nodes": [{ "name": "地点", "position": "方位", "distant": 1, "type": "main/sub/home", "info": "特征" }] } }\n}',
-        worldsim: '{\n  "meta": { "truth": { "overview": "保持或微调",\n    "onion_layers": {\n      "L1_Surface": [{ "desc": "更新流言", "logic": "..." }], "L2_Traces": [{ "desc": "新线索", "logic": "..." }],\n      "L3_Mechanism": [{ "desc": "机制变化", "logic": "..." }], "L4_Nodes": [{ "desc": "新动向", "logic": "..." }],\n      "L5_Core": { "desc": "保持", "logic": "保持" }, "L6_Drive": { "desc": "保持", "logic": "保持" }, "L7_Consequence": { "desc": "保持", "logic": "保持" }\n    } },\n    "outcomes": { "default_end": "保持", "intervention_end": "微调", "resolution_end": "保持" }\n  },\n  "timeline": [{ "stage": "N+1", "state": "新状态", "event": "新事件" }],\n  "world": { "news": [{ "title": "新标题", "time": "...", "content": "..." }] },\n  "maps": { "outdoor": { "description": "更新描写", "nodes": [] } }\n}',
-        scene: '{\n  "review": { "deviation": { "cot_analysis": "分析玩家行为影响", "score_delta": 0, "prev_loc_update": "地点变化描写" } },\n  "scene_setup": {\n    "side_story": { "story": "本场景剧情", "surface": "表层钩子", "inner": "里层真相" },\n    "local_map": { "name": "地点名", "description": "全景描写含[[节点]]", "nodes": [{ "name": "节点", "position": "方位", "distant": 1, "type": "main/sub/interact", "info": "描写" }] },\n    "strangers": [{ "name": "NPC名", "location": "节点", "info": "外貌行为" }]\n  }\n}'
+        worldgen: `{
+  "meta": {
+    "truth": { "overview": "一句话核心真相",
+      "onion_layers": {
+        "L1_Surface": [{ "desc": "表象", "logic": "实际情况" }],
+        "L2_Traces": [{ "desc": "物证", "logic": "揭示信息" }],
+        "L3_Mechanism": [{ "desc": "机制", "logic": "指向核心" }],
+        "L4_Nodes": [{ "desc": "节点", "logic": "作用" }],
+        "L5_Core": { "desc": "核心源头", "logic": "能力" },
+        "L6_Drive": { "desc": "驱动力", "logic": "为何产生" },
+        "L7_Consequence": { "desc": "无人干涉结局", "logic": "后果" }
+      }
+    },
+    "outcomes": { "default_end": "顺其自然", "intervention_end": "部分介入", "resolution_end": "完美解决" }
+  },
+  "timeline": [{ "stage": 0, "state": "状态", "event": "事件" }],
+  "world": { "news": [{ "title": "标题", "time": "时间", "content": "内容" }] },
+  "maps": { "outdoor": { "description": "全景描写含[[节点名]]", "nodes": [{ "name": "地点", "position": "方位", "distant": 1, "type": "main/sub/home", "info": "特征" }] } }
+}`,
+        worldsim: `{
+  "meta": { "truth": { "overview": "保持或微调",
+    "onion_layers": {
+      "L1_Surface": [{ "desc": "更新流言", "logic": "..." }],
+      "L2_Traces": [{ "desc": "新线索", "logic": "..." }],
+      "L3_Mechanism": [{ "desc": "机制变化", "logic": "..." }],
+      "L4_Nodes": [{ "desc": "新动向", "logic": "..." }],
+      "L5_Core": { "desc": "保持", "logic": "保持" },
+      "L6_Drive": { "desc": "保持", "logic": "保持" },
+      "L7_Consequence": { "desc": "保持", "logic": "保持" }
+    } },
+    "outcomes": { "default_end": "保持", "intervention_end": "微调", "resolution_end": "保持" }
+  },
+  "timeline": [{ "stage": "N+1", "state": "新状态", "event": "新事件" }],
+  "world": { "news": [{ "title": "新标题", "time": "...", "content": "..." }] },
+  "maps": { "outdoor": { "description": "更新描写", "nodes": [] } }
+}`,
+        scene: `{
+  "review": { "deviation": { "cot_analysis": "分析玩家行为影响", "score_delta": 0, "prev_loc_update": "地点变化描写" } },
+  "scene_setup": {
+    "side_story": { "story": "本场景剧情", "surface": "表层钩子", "inner": "里层真相" },
+    "local_map": { "name": "地点名", "description": "全景描写含[[节点]]", "nodes": [{ "name": "节点", "position": "方位", "distant": 1, "type": "main/sub/interact", "info": "描写" }] },
+    "strangers": [{ "name": "NPC名", "location": "节点", "info": "外貌行为" }]
+  }
+}`
       }
     };
     let promptTemplates = JSON.parse(JSON.stringify(defaultPromptTemplates));
@@ -4056,69 +4245,24 @@
       });
     }
 
-    // 提示词字段显示名映射
-    const promptFieldLabels = {
-      s: 'System（系统提示）',
-      u1: 'User 1（用户第一轮）',
-      a1: 'Assistant 1（助手确认）',
-      u2: 'User 2（用户第二轮）',
-      a2: 'Assistant 2（助手开始）'
-    };
-
-    // 打开提示词模板编辑（使用专用模态框）
+    // 打开提示词模板编辑（使用分隔符格式，更易读）
     function openPromptEdit(key) {
       const item = promptKeys.find(([k]) => k === key);
       if (!item) return;
+      editingKey = null;
       editingPromptKey = key;
-      const [, title, desc, struct] = item;
-      const template = promptTemplates[key] || {};
-      
-      // 根据 struct 解析需要显示的字段
-      const fields = struct.split(' ').filter(f => f);
-      
-      // 生成编辑字段 HTML
-      let fieldsHtml = `<div class="fs12 c2" style="margin-bottom:12px">${desc}</div>`;
-      fields.forEach(field => {
-        const label = promptFieldLabels[field] || field.toUpperCase();
-        const value = template[field] || '';
-        fieldsHtml += `
-          <div class="form-g" style="margin-bottom:12px">
-            <label class="form-l fw5">${label}</label>
-            <textarea class="form-ta prompt-field-ta" data-field="${field}" style="min-height:100px;font-size:12px;line-height:1.5">${escapeHtml(value)}</textarea>
-          </div>`;
-      });
-      
-      $('prompt-edit-title').textContent = `编辑提示词 - ${title}`;
-      $('prompt-edit-fields').innerHTML = fieldsHtml;
-      $('prompt-edit-err').classList.remove('vis');
-      $('prompt-edit-err').textContent = '';
-      openM('m-prompt-edit');
+      editingJsonKey = null;
+      $('data-edit-title').textContent = `编辑提示词 - ${item[1]}`;
+      // 用分隔符格式显示，而不是 JSON
+      const template = promptTemplates[key];
+      const keys = Object.keys(template);
+      const separator = '\n=====\n';
+      const header = `// 字段: ${keys.join(', ')}（用 ===== 分隔各部分）\n// ${item[2]}\n\n`;
+      $('data-edit-ta').value = header + keys.map(k => template[k]).join(separator);
+      $('data-edit-err').classList.remove('vis');
+      $('data-edit-err').textContent = '';
+      openM('m-data-edit');
     }
-
-    // 保存提示词模板
-    $('prompt-edit-save').onclick = () => {
-      if (!editingPromptKey) return;
-      const newTemplate = {};
-      $$('#prompt-edit-fields .prompt-field-ta').forEach(ta => {
-        newTemplate[ta.dataset.field] = ta.value;
-      });
-      promptTemplates[editingPromptKey] = newTemplate;
-      savePromptTemplates();
-      closeM('m-prompt-edit');
-      editingPromptKey = null;
-    };
-
-    // 恢复默认模板
-    $('prompt-edit-reset').onclick = () => {
-      if (!editingPromptKey) return;
-      if (!confirm('确定恢复此模板为默认值？')) return;
-      const defaultTemplate = defaultPromptTemplates[editingPromptKey];
-      if (defaultTemplate) {
-        $$('#prompt-edit-fields .prompt-field-ta').forEach(ta => {
-          ta.value = defaultTemplate[ta.dataset.field] || '';
-        });
-      }
-    };
 
     // 打开JSON模板编辑
     function openJsonEdit(key) {
