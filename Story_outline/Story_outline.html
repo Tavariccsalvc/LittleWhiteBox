@@ -283,11 +283,23 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      background: var(--bg2);
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       padding: 8px 5px;
       border-radius: 20px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .05);
+      border: 1px solid rgba(221, 221, 221, 0.3);
+      opacity: 0.4;
+      transition: opacity 0.2s ease, background 0.2s ease;
+    }
+
+    .side-nav:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
-      border: 1px solid var(--bd)
     }
 
     .nav-i {
@@ -322,12 +334,24 @@
       top: calc(50% - 90px);
       transform: translateY(-50%);
       z-index: 500;
-      background: var(--bg2);
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       padding: 5px;
       border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .05);
+      border: 1px solid rgba(221, 221, 221, 0.3);
+      display: none;
+      opacity: 0.4;
+      transition: opacity 0.2s ease, background 0.2s ease;
+    }
+
+    .map-tog:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
-      border: 1px solid var(--bd);
-      display: none
     }
 
     .map-tog.show {
@@ -3343,7 +3367,7 @@
     };
     $('info-bk').onclick = hideInfo;
     $('mob-info-bk').onclick = () => popup.classList.remove('show-i');
-    let sx, sy, lastDist = 0;
+    let sx, sy, lastDist = 0, lastCenterX = 0, lastCenterY = 0;
     mapWrap.onmousedown = e => {
       if (anim || e.target.closest('.map-act,.map-lbl')) return;
       if (!e.target.classList.contains('item')) hideInfo();
@@ -3392,7 +3416,10 @@
         sy = e.touches[0].clientY
       } else if (e.touches.length === 2) {
         drag = false;
-        lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+        lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        // 记录两指中心点
+        lastCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        lastCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       }
     };
     mapWrap.ontouchmove = e => {
@@ -3417,8 +3444,27 @@
         updateTf()
       } else if (e.touches.length === 2) {
         const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        scale = Math.max(.3, Math.min(3, scale + (d - lastDist) * .005));
+        // 计算新的两指中心点
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        // 计算新缩放比例
+        const ns = Math.max(.3, Math.min(3, scale * (d / lastDist)));
+        // 获取mapWrap的位置
+        const rect = mapWrap.getBoundingClientRect();
+        // 相对于mapWrap的中心点位置
+        const mx = centerX - rect.left;
+        const my = centerY - rect.top;
+        // 调整偏移以保持缩放中心不变
+        const r = ns / scale;
+        offX = mx - (mx - offX) * r;
+        offY = my - (my - offY) * r;
+        // 同时处理两指平移
+        offX += centerX - lastCenterX;
+        offY += centerY - lastCenterY;
+        scale = ns;
         lastDist = d;
+        lastCenterX = centerX;
+        lastCenterY = centerY;
         updateTf()
       }
     };
