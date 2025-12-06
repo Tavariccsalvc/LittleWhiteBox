@@ -1,0 +1,4236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>剧情地图</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --bg: #f7f7f7;
+      --bg2: #fff;
+      --bg3: #f0f0f0;
+      --c: #222;
+      --c2: #666;
+      --c3: #999;
+      --bd: #ddd
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--c)
+    }
+
+    .fc {
+      display: flex;
+      align-items: center
+    }
+
+    .fcc {
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .col {
+      flex-direction: column
+    }
+
+    .g4 {
+      gap: 4px
+    }
+
+    .g6 {
+      gap: 6px
+    }
+
+    .g8 {
+      gap: 8px
+    }
+
+    .g10 {
+      gap: 10px
+    }
+
+    .g12 {
+      gap: 12px
+    }
+
+    .p12 {
+      padding: 12px
+    }
+
+    .p14 {
+      padding: 14px
+    }
+
+    .p18 {
+      padding: 18px
+    }
+
+    .r4 {
+      border-radius: 4px
+    }
+
+    .r6 {
+      border-radius: 6px
+    }
+
+    .r50 {
+      border-radius: 50%
+    }
+
+    .bd {
+      border: 1px solid var(--bd)
+    }
+
+    .bg2 {
+      background: var(--bg2)
+    }
+
+    .bg3 {
+      background: var(--bg3)
+    }
+
+    .fs11 {
+      font-size: 11px
+    }
+
+    .fs12 {
+      font-size: 12px
+    }
+
+    .fs13 {
+      font-size: 13px
+    }
+
+    .fs14 {
+      font-size: 14px
+    }
+
+    .fw5 {
+      font-weight: 500
+    }
+
+    .fw6 {
+      font-weight: 600
+    }
+
+    .c2 {
+      color: var(--c2)
+    }
+
+    .c3 {
+      color: var(--c3)
+    }
+
+    .ptr {
+      cursor: pointer
+    }
+
+    .dn {
+      display: none
+    }
+
+    .db {
+      display: block
+    }
+
+    .df {
+      display: flex
+    }
+
+    .w100 {
+      width: 100%
+    }
+
+    .h100 {
+      height: 100%
+    }
+
+    .flex1 {
+      flex: 1
+    }
+
+    .shrink0 {
+      flex-shrink: 0
+    }
+
+    .ofh {
+      overflow: hidden
+    }
+
+    .ofy {
+      overflow-y: auto
+    }
+
+    .wsn {
+      white-space: nowrap
+    }
+
+    .usn {
+      user-select: none
+    }
+
+    .trans {
+      transition: all .15s
+    }
+
+    .btn {
+      padding: 8px 16px;
+      background: var(--bg2);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+      border: 1px solid var(--bd);
+      border-radius: 4px;
+      color: var(--c)
+    }
+
+    .btn:hover {
+      border-color: var(--c);
+      background: var(--bg3)
+    }
+
+    .btn-p {
+      background: var(--c);
+      color: #fff;
+      border-color: var(--c)
+    }
+
+    .btn-s {
+      padding: 6px 12px;
+      font-size: 12px
+    }
+
+    .btn-c {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: #888;
+      border-color: #777;
+      color: #fff;
+      border-radius: 50%
+    }
+
+    .btn-add {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      flex-shrink: 0
+    }
+
+    .fold {
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      overflow: hidden
+    }
+
+    .fold-h {
+      padding: 12px 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center
+    }
+
+    .fold-h:hover {
+      background: var(--bg3)
+    }
+
+    .fold-a {
+      transition: transform .2s;
+      color: var(--c3);
+      font-size: 10px
+    }
+
+    .fold.exp .fold-a {
+      transform: rotate(180deg)
+    }
+
+    .fold-b {
+      max-height: 0;
+      overflow: hidden;
+      transition: all .25s
+    }
+
+    .fold.exp .fold-b {
+      max-height: 300px
+    }
+
+    .side-nav {
+      position: fixed;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: var(--bg2);
+      padding: 8px 5px;
+      border-radius: 20px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+      border: 1px solid var(--bd)
+    }
+
+    .nav-i {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 50%;
+      transition: all .15s;
+      color: var(--c3)
+    }
+
+    .nav-i i {
+      font-size: 13px
+    }
+
+    .nav-i:hover {
+      background: var(--bg3);
+      color: var(--c2)
+    }
+
+    .nav-i.act {
+      background: var(--c);
+      color: #fff
+    }
+
+    .map-tog {
+      position: fixed;
+      left: 10px;
+      top: calc(50% - 90px);
+      transform: translateY(-50%);
+      z-index: 500;
+      background: var(--bg2);
+      padding: 5px;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+      border: 1px solid var(--bd);
+      display: none
+    }
+
+    .map-tog.show {
+      display: block
+    }
+
+    .map-tog-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 50%;
+      color: var(--c3);
+      border: none;
+      background: transparent
+    }
+
+    .map-tog-btn.in {
+      color: var(--c)
+    }
+
+    .toolbar {
+      height: 44px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--bd);
+      padding: 0 12px 0 56px
+    }
+
+    .toolbar-t {
+      font-size: 14px;
+      font-weight: 600;
+      margin-right: auto
+    }
+
+    .toolbar-t span {
+      font-weight: 400;
+      color: var(--c3);
+      margin-left: 8px;
+      font-size: 12px
+    }
+
+    .main-wrap {
+      width: 100%;
+      height: calc(100% - 44px);
+      position: relative
+    }
+
+    .page {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: none;
+      overflow: hidden
+    }
+
+    .page.act {
+      display: block
+    }
+
+    .page-pad {
+      padding: 20px 20px 20px 56px;
+      overflow-y: auto;
+      height: 100%
+    }
+
+    .banner {
+      width: 100%;
+      height: 160px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      position: relative;
+      background: var(--bg3)
+    }
+
+    .banner img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(30%)
+    }
+
+    .banner-ov {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(transparent 40%, rgba(0, 0, 0, .5));
+      display: flex;
+      align-items: flex-end;
+      padding: 16px
+    }
+
+    .banner-ov div {
+      color: #fff;
+      font-size: 13px
+    }
+
+    .sec-t {
+      font-size: 12px;
+      color: var(--c3);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px
+    }
+
+    .news-sec {
+      margin-bottom: 24px
+    }
+
+    .news-t {
+      font-size: 13px;
+      font-weight: 500
+    }
+
+    .news-time {
+      font-size: 11px;
+      color: var(--c3)
+    }
+
+    .fold.exp .news-b {
+      padding: 0 14px 14px
+    }
+
+    .news-b p {
+      font-size: 12px;
+      color: var(--c2);
+      line-height: 1.7
+    }
+
+    .prog {
+      padding: 14px;
+      background: var(--bg2);
+      border-radius: 6px;
+      border: 1px solid var(--bd)
+    }
+
+    .prog-bar {
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden
+    }
+
+    .prog-fill {
+      height: 100%;
+      background: var(--c);
+      border-radius: 3px
+    }
+
+    .prog-txt {
+      font-size: 11px;
+      color: var(--c3);
+      margin-top: 8px;
+      text-align: right
+    }
+
+    #mapWrap {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      cursor: grab;
+      overflow: hidden;
+      position: relative
+    }
+
+    #inner {
+      position: absolute;
+      width: 4000px;
+      height: 4000px;
+      transform-origin: 0 0
+    }
+
+    #lines {
+      position: absolute;
+      width: 4000px;
+      height: 4000px;
+      pointer-events: none
+    }
+
+    .item {
+      position: absolute;
+      padding: 8px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+      transition: all .15s
+    }
+
+    .item:hover {
+      transform: scale(1.05);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, .1);
+      z-index: 10
+    }
+
+    .item.node-main {
+      background: var(--c);
+      color: #fff;
+      border-color: #111
+    }
+
+    .item.node-home {
+      background: #4a5568;
+      color: #fff;
+      border-color: #2d3748
+    }
+
+    .item.node-sub {
+      background: var(--bg2)
+    }
+
+    .item.hl {
+      border-color: #666;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, .2);
+      z-index: 20
+    }
+
+    .map-act {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 100
+    }
+
+    #btn-goto {
+      display: none
+    }
+
+    #btn-goto.show {
+      display: flex
+    }
+
+    .map-lbl {
+      position: absolute;
+      top: 10px;
+      left: 56px;
+      z-index: 100;
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 11px;
+      color: var(--c2)
+    }
+
+    .map-lbl i {
+      margin-right: 6px
+    }
+
+    .panel {
+      position: fixed;
+      background: var(--bg2);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--c3);
+      border: 1px solid var(--bd)
+    }
+
+    #zoom-ind {
+      bottom: 12px;
+      right: 12px
+    }
+
+    #tip {
+      bottom: 12px;
+      left: 56px;
+      right: 12px;
+      max-width: 400px;
+      padding: 12px 14px;
+      line-height: 1.6;
+      max-height: 180px;
+      overflow-y: auto
+    }
+
+    #tip .desc {
+      color: var(--c2);
+      font-size: 12px
+    }
+
+    .loc-lk {
+      color: var(--c);
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 1px dashed var(--c3)
+    }
+
+    #tip.show-i .desc {
+      display: none
+    }
+
+    #tip .info-w {
+      display: none
+    }
+
+    #tip.show-i .info-w {
+      display: block
+    }
+
+    #tip.show-i {
+      border-color: var(--c)
+    }
+
+    .info-h {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px
+    }
+
+    .info-t {
+      font-weight: 600;
+      color: var(--c);
+      font-size: 13px
+    }
+
+    .info-bk {
+      font-size: 11px;
+      color: var(--c3);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 3px
+    }
+
+    .info-bk:hover {
+      background: var(--bg3)
+    }
+
+    .info-c {
+      color: var(--c2);
+      font-size: 12px;
+      line-height: 1.6
+    }
+
+    .comm-hd {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px
+    }
+
+    .comm-tabs {
+      display: flex;
+      flex: 1
+    }
+
+    .comm-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all .15s
+    }
+
+    .comm-tab:first-child {
+      border-radius: 6px 0 0 6px
+    }
+
+    .comm-tab:last-child {
+      border-radius: 0 6px 6px 0;
+      border-left: none
+    }
+
+    .comm-tab:hover {
+      background: var(--bg3)
+    }
+
+    .comm-tab.act {
+      background: var(--c);
+      color: #fff;
+      border-color: var(--c)
+    }
+
+    .comm-sec {
+      display: none
+    }
+
+    .comm-sec.act {
+      display: block
+    }
+
+    .ct-hd {
+      gap: 10px
+    }
+
+    .ct-av {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      flex-shrink: 0
+    }
+
+    .ct-info {
+      flex: 1
+    }
+
+    .ct-name {
+      font-size: 13px;
+      font-weight: 500
+    }
+
+    .ct-st {
+      font-size: 11px;
+      color: var(--c3)
+    }
+
+    .ct-det {
+      padding: 0 14px 14px
+    }
+
+    .ct-info-text {
+      font-size: 12px;
+      color: var(--c2);
+      line-height: 1.7;
+      margin: 0 0 12px
+    }
+
+    .ct-acts {
+      display: flex;
+      gap: 8px
+    }
+
+    .ct-acts .btn {
+      flex: 1;
+      justify-content: center;
+      font-size: 12px
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--c3);
+      font-size: 13px
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: none;
+      justify-content: center;
+      align-items: center
+    }
+
+    .modal.act {
+      display: flex
+    }
+
+    .modal-bd {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, .4);
+      backdrop-filter: blur(2px)
+    }
+
+    .modal-p {
+      position: relative;
+      width: 90%;
+      max-width: 700px;
+      max-height: 85vh;
+      background: var(--bg2);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column
+    }
+
+    .modal-p.sm {
+      max-width: 360px
+    }
+
+    .modal-hd,
+    .modal-ft {
+      padding: 14px 18px
+    }
+
+    .modal-hd {
+      justify-content: space-between;
+      border-bottom: 1px solid var(--bd)
+    }
+
+    .modal-hd h2 {
+      font-size: 14px;
+      font-weight: 600
+    }
+
+    .modal-ft {
+      justify-content: flex-end;
+      gap: 10px;
+      border-top: 1px solid var(--bd)
+    }
+
+    .modal-x {
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      cursor: pointer;
+      border: 1px solid var(--bd);
+      border-radius: 4px
+    }
+
+    .modal-x:hover {
+      background: var(--bg3)
+    }
+
+    .modal-by {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px
+    }
+
+    .ed-sec .fold-h {
+      background: var(--bg3)
+    }
+
+    .ed-sec.exp .fold-b {
+      max-height: 400px
+    }
+
+    .set-fold {
+      background: var(--bg);
+      border: 1px solid var(--bd);
+      border-radius: 6px;
+      margin-top: 16px
+    }
+
+    .set-fold .fold-h {
+      padding: 12px 14px
+    }
+
+    .set-fold .fold-b {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s
+    }
+
+    .set-fold.exp .fold-b {
+      max-height: fit-content
+    }
+
+    .set-fold-c {
+      padding: 14px
+    }
+
+    .btn-xs {
+      padding: 4px 10px;
+      font-size: 11px;
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 4px;
+      cursor: pointer
+    }
+
+    .btn-xs:hover {
+      background: var(--bg2)
+    }
+
+    .ed-ta {
+      width: 100%;
+      min-height: 200px;
+      padding: 12px;
+      background: var(--bg);
+      border: none;
+      border-top: 1px solid var(--bd);
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--c);
+      resize: none;
+      outline: none
+    }
+
+    .ed-err {
+      padding: 10px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 4px;
+      color: #b91c1c;
+      font-size: 12px;
+      margin-top: 10px;
+      display: none
+    }
+
+    .ed-err.vis {
+      display: block
+    }
+
+    .form-g {
+      margin-bottom: 14px
+    }
+
+    .form-l {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--c2)
+    }
+
+    .form-in {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--bd);
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+      background: var(--bg2)
+    }
+
+    .form-ta {
+      min-height: 80px;
+      resize: vertical;
+      font-family: inherit
+    }
+
+    .goto-d {
+      font-size: 13px;
+      color: var(--c);
+      font-weight: 500;
+      padding: 10px 14px;
+      background: var(--bg3);
+      border-radius: 4px;
+      margin-bottom: 14px
+    }
+
+    .chat {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 300px;
+      height: 100%;
+      background: var(--bg2);
+      border-left: 1px solid var(--bd);
+      z-index: 600;
+      display: flex;
+      flex-direction: column;
+      transition: right .3s
+    }
+
+    .chat.act {
+      right: 0
+    }
+
+    .chat-hd {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0
+    }
+
+    .chat-av {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px
+    }
+
+    .chat-t {
+      flex: 1
+    }
+
+    .chat-nm {
+      font-size: 14px;
+      font-weight: 600
+    }
+
+    .chat-st {
+      font-size: 11px;
+      color: var(--c3)
+    }
+
+    .chat-hd-acts {
+      display: flex;
+      align-items: center;
+      gap: 4px
+    }
+
+    .chat-compress,
+    .chat-clr,
+    .chat-x {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--c3)
+    }
+
+    .chat-compress:hover,
+    .chat-clr:hover,
+    .chat-x:hover {
+      background: var(--bg3);
+      color: var(--c)
+    }
+
+    .chat-compress:hover {
+      color: #3498db
+    }
+
+    .chat-compress:disabled {
+      opacity: .4;
+      cursor: not-allowed
+    }
+
+    .chat-clr:hover {
+      color: #e74c3c
+    }
+
+    .chat-divider {
+      width: 100%;
+      text-align: center;
+      padding: 8px 0;
+      color: var(--c3);
+      font-size: 11px;
+      position: relative
+    }
+
+    .chat-divider::before,
+    .chat-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 30%;
+      height: 1px;
+      background: var(--bd)
+    }
+
+    .chat-divider::before {
+      left: 0
+    }
+
+    .chat-divider::after {
+      right: 0
+    }
+
+    .chat-summary {
+      background: var(--bg3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 8px 0;
+      font-size: 12px;
+      color: var(--c2);
+      line-height: 1.5;
+      border-left: 3px solid var(--c)
+    }
+
+    .chat-msgs {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px
+    }
+
+    .chat-msg {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap
+    }
+
+    .chat-msg.sent {
+      align-self: flex-end;
+      background: var(--c);
+      color: #fff;
+      border-bottom-right-radius: 4px
+    }
+
+    .chat-msg.recv {
+      align-self: flex-start;
+      background: var(--bg3);
+      border-bottom-left-radius: 4px
+    }
+
+    .chat-msg.typing {
+      font-style: italic;
+      opacity: .7
+    }
+
+    .chat-msg .msg-t {
+      font-size: 10px;
+      opacity: .6;
+      margin-top: 4px
+    }
+
+    .chat-in-w {
+      padding: 12px;
+      border-top: 1px solid var(--bd);
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0
+    }
+
+    .chat-in {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--bd);
+      border-radius: 20px;
+      font-size: 13px;
+      outline: none;
+      background: var(--bg)
+    }
+
+    .chat-in:focus {
+      border-color: var(--c)
+    }
+
+    .chat-in:disabled {
+      opacity: .5;
+      cursor: not-allowed
+    }
+
+    .chat-send {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: var(--c);
+      color: #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .chat-send:hover {
+      opacity: .9
+    }
+
+    .chat-send:disabled {
+      opacity: .5;
+      cursor: not-allowed
+    }
+
+    .chat-emp {
+      text-align: center;
+      color: var(--c3);
+      font-size: 12px;
+      padding: 40px 20px
+    }
+
+    .loc-list {
+      max-height: 300px;
+      overflow-y: auto
+    }
+
+    .loc-i {
+      padding: 12px 14px;
+      border: 1px solid var(--bd);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all .15s
+    }
+
+    .loc-i:hover {
+      border-color: var(--c);
+      background: var(--bg3)
+    }
+
+    .loc-i.sel {
+      border-color: var(--c);
+      background: var(--c);
+      color: #fff
+    }
+
+    .loc-i-nm {
+      font-size: 13px;
+      font-weight: 500
+    }
+
+    .loc-i-info {
+      font-size: 11px;
+      opacity: .7;
+      margin-top: 2px
+    }
+
+    .mob-pop {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--bd);
+      border-radius: 12px 12px 0 0;
+      box-shadow: 0 -2px 16px rgba(0, 0, 0, .1);
+      z-index: 200;
+      display: none;
+      flex-direction: column
+    }
+
+    .mob-pop.act {
+      display: flex
+    }
+
+    .mob-pop.drag {
+      transition: none !important
+    }
+
+    .mob-pop:not(.drag) {
+      transition: height .2s ease-out
+    }
+
+    .pop-hd {
+      padding: 12px 20px 8px;
+      cursor: grab;
+      touch-action: none;
+      flex-shrink: 0
+    }
+
+    .pop-handle {
+      width: 36px;
+      height: 4px;
+      background: var(--bd);
+      border-radius: 2px;
+      margin: 0 auto
+    }
+
+    .pop-ct {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px 20px;
+      -webkit-overflow-scrolling: touch
+    }
+
+    .pop-desc {
+      color: var(--c2);
+      font-size: 13px;
+      line-height: 1.7
+    }
+
+    .pop-info {
+      display: none
+    }
+
+    .mob-pop.show-i .pop-desc {
+      display: none
+    }
+
+    .mob-pop.show-i .pop-info {
+      display: block
+    }
+
+    .pop-info-h {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px
+    }
+
+    .pop-info-t {
+      font-weight: 600;
+      font-size: 14px
+    }
+
+    .pop-info-bk {
+      font-size: 12px;
+      color: var(--c3);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px
+    }
+
+    .pop-h-ind {
+      position: absolute;
+      top: 50%;
+      right: 6px;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      opacity: 0;
+      transition: opacity .15s
+    }
+
+    .mob-pop.drag .pop-h-ind {
+      opacity: 1
+    }
+
+    .pop-h-ind span {
+      width: 3px;
+      height: 8px;
+      background: var(--bd);
+      border-radius: 1px
+    }
+
+    .pop-h-ind span.act {
+      background: var(--c)
+    }
+
+    .set-sec {
+      margin-bottom: 16px
+    }
+
+    .set-sec-t {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--c);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--bd)
+    }
+
+    .set-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px
+    }
+
+    .set-row .form-in {
+      flex: 1
+    }
+
+    .set-row .btn {
+      flex-shrink: 0
+    }
+
+    .set-hint {
+      font-size: 11px;
+      color: var(--c3);
+      margin-top: 4px
+    }
+
+    .set-test {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px
+    }
+
+    .set-test-res {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      display: none
+    }
+
+    .set-test-res.ok {
+      display: block;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac
+    }
+
+    .set-test-res.err {
+      display: block;
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca
+    }
+
+    /* 高级设置样式 */
+    .prompt-tab {
+      font-size: 11px !important;
+      padding: 4px 8px !important;
+      opacity: 0.7;
+      transition: all .15s
+    }
+    .prompt-tab.act {
+      opacity: 1;
+      background: var(--c) !important;
+      color: var(--bg) !important
+    }
+    .prompt-panel .form-g {
+      margin-bottom: 10px
+    }
+    .prompt-panel .form-l {
+      font-size: 11px;
+      color: var(--c2)
+    }
+    .prompt-panel .form-ta {
+      font-size: 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      line-height: 1.4
+    }
+    #adv-toggle:hover {
+      color: var(--c2)
+    }
+    #adv-arrow.open {
+      transform: rotate(90deg)
+    }
+
+    .data-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--bd);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all .15s
+    }
+
+    .data-item:hover {
+      border-color: var(--c2);
+      background: var(--bg3)
+    }
+
+    .data-item.sel {
+      border-color: var(--c);
+      background: rgba(34, 34, 34, .05)
+    }
+
+    .data-ck {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--bd);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all .15s;
+      margin-top: 2px
+    }
+
+    .data-item.sel .data-ck {
+      background: var(--c);
+      border-color: var(--c);
+      color: #fff
+    }
+
+    .data-ck i {
+      font-size: 10px;
+      opacity: 0
+    }
+
+    .data-item.sel .data-ck i {
+      opacity: 1
+    }
+
+    .data-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .data-nm {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px
+    }
+
+    .data-desc {
+      font-size: 11px;
+      color: var(--c3);
+      line-height: 1.4
+    }
+
+    .data-edit {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--bd);
+      border-radius: 4px;
+      background: var(--bg2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all .15s;
+      color: var(--c3)
+    }
+
+    .data-edit:hover {
+      border-color: var(--c);
+      color: var(--c);
+      background: var(--bg3)
+    }
+
+    .modal-p.lg {
+      max-width: 560px
+    }
+
+    @media(max-width:768px) {
+      .chat {
+        width: 100%;
+        right: -100%
+      }
+    }
+
+    @media(max-width:480px) {
+      .side-nav {
+        left: 6px;
+        padding: 6px 4px
+      }
+
+      .nav-i {
+        width: 28px;
+        height: 28px
+      }
+
+      .nav-i i {
+        font-size: 11px
+      }
+
+      .map-tog {
+        left: 6px;
+        top: calc(50% - 75px)
+      }
+
+      .map-tog-btn {
+        width: 28px;
+        height: 28px
+      }
+
+      .toolbar {
+        padding: 0 10px 0 48px
+      }
+
+      .toolbar-t span {
+        display: none
+      }
+
+      .btn {
+        padding: 6px 10px;
+        font-size: 11px
+      }
+
+      .modal-p {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0
+      }
+
+      #tip {
+        display: none
+      }
+
+      .page-pad {
+        padding: 14px 14px 14px 48px
+      }
+
+      .map-lbl {
+        left: 48px
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="map-tog show" id="map-tog"><button class="map-tog-btn" id="btn-tog"><i class="fa-solid fa-expand"></i></button></div>
+
+  <nav class="side-nav">
+    <div class="nav-i" data-p="world"><i class="fa-solid fa-earth-americas"></i></div>
+    <div class="nav-i act" data-p="map"><i class="fa-solid fa-map"></i></div>
+    <div class="nav-i" data-p="comm"><i class="fa-solid fa-phone"></i></div>
+  </nav>
+
+  <div class="toolbar fc g10 usn">
+    <div class="toolbar-t">剧情地图<span>Story Outline</span></div>
+    <button class="btn btn-s fc g6" id="btn-deduce"><i class="fa-solid fa-wand-magic-sparkles"></i>世界生成</button>
+    <button class="btn btn-s fc g6" id="btn-simulate"><i class="fa-solid fa-rotate"></i>世界推演</button>
+    <button class="btn btn-s fc g6" id="btn-settings"><i class="fa-solid fa-gear"></i>设置</button>
+    <button class="btn btn-c fcc" id="btn-close">✕</button>
+  </div>
+
+  <div class="main-wrap">
+    <div class="page page-pad" id="page-world">
+      <div class="banner"><img src="https://picsum.photos/800/300" alt="">
+        <div class="banner-ov">
+          <div>探索未知的世界...</div>
+        </div>
+      </div>
+      <div class="news-sec">
+        <h3 class="sec-t">最新消息</h3>
+        <div id="news-list"></div>
+      </div>
+      <div class="prog">
+        <h3 class="sec-t">主线进度</h3>
+        <div class="prog-bar">
+          <div class="prog-fill" id="prog-fill"></div>
+        </div>
+        <div class="prog-txt" id="prog-txt"></div>
+      </div>
+    </div>
+
+    <div class="page act" id="page-map">
+      <div id="mapWrap">
+        <div class="map-lbl"><i class="fa-solid fa-map-location-dot"></i><span id="map-lbl-t">大地图</span></div>
+        <div class="map-act"><button class="btn btn-s btn-p fc g6" id="btn-goto"><i class="fa-solid fa-location-arrow"></i><span id="goto-t">前往</span></button></div>
+        <div id="inner"><svg id="lines"></svg></div>
+      </div>
+      <div class="panel" id="zoom-ind">100%</div>
+      <div class="panel" id="tip">
+        <div class="desc" id="desc"></div>
+        <div class="info-w">
+          <div class="info-h">
+            <div class="info-t" id="info-t"></div>
+            <div class="info-bk" id="info-bk">← 返回</div>
+          </div>
+          <div class="info-c" id="info-c"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page page-pad" id="page-comm">
+      <div class="comm-hd">
+        <div class="comm-tabs">
+          <div class="comm-tab act" data-t="stranger">陌路人</div>
+          <div class="comm-tab" data-t="contact">联络人</div>
+        </div>
+        <button class="btn btn-add fcc" id="btn-refresh-strangers" title="摇一摇，与陌路人相遇"><i class="fa-solid fa-rotate"></i></button>
+        <button class="btn btn-add fcc" id="btn-add-ct"><i class="fa-solid fa-plus"></i></button>
+      </div>
+      <div id="sec-stranger" class="comm-sec act"></div>
+      <div id="sec-contact" class="comm-sec"></div>
+    </div>
+  </div>
+
+  <div class="chat" id="chat">
+    <div class="chat-hd">
+      <div class="chat-av" id="chat-av"></div>
+      <div class="chat-t">
+        <div class="chat-nm" id="chat-nm"></div>
+        <div class="chat-st" id="chat-st"></div>
+      </div>
+      <div class="chat-hd-acts"><button class="chat-compress" id="chat-compress" title="压缩总结历史消息"><i class="fa-solid fa-compress"></i></button><button class="chat-clr" id="chat-clr" title="清空聊天记录"><i class="fa-solid fa-trash"></i></button><button class="chat-x" id="chat-x"><i class="fa-solid fa-xmark"></i></button></div>
+    </div>
+    <div class="chat-msgs" id="chat-msgs"></div>
+    <div class="chat-in-w"><input type="text" class="chat-in" id="chat-in" placeholder="输入消息..."><button class="chat-send" id="chat-send"><i class="fa-solid fa-paper-plane"></i></button></div>
+  </div>
+
+  <div class="mob-pop" id="mob-pop">
+    <div class="pop-h-ind"><span data-l="2"></span><span data-l="1"></span><span data-l="0"></span></div>
+    <div class="pop-hd" id="pop-hd">
+      <div class="pop-handle"></div>
+    </div>
+    <div class="pop-ct">
+      <div class="pop-desc" id="mob-desc"></div>
+      <div class="pop-info">
+        <div class="pop-info-h">
+          <div class="pop-info-t" id="mob-info-t"></div>
+          <div class="pop-info-bk" id="mob-info-bk">← 返回</div>
+        </div>
+        <div id="mob-info-c"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="m-settings">
+    <div class="modal-bd"></div>
+    <div class="modal-p lg">
+      <div class="modal-hd fc">
+        <h2>设置</h2><button class="modal-x fcc">✕</button>
+      </div>
+      <div class="modal-by">
+        <div class="set-sec">
+          <div class="set-sec-t">剧情状态</div>
+          <div class="set-row" style="gap:20px;margin-bottom:16px">
+            <div class="form-g" style="flex:1">
+              <label class="form-l">当前阶段 (Stage)</label>
+              <input type="number" class="form-in" id="set-stage" min="0" max="10" value="0">
+              <div class="set-hint">决定可见的洋葱层级 (L1-L7)</div>
+            </div>
+            <div class="form-g" style="flex:1">
+              <label class="form-l">偏离分数 (Deviation)</label>
+              <input type="number" class="form-in" id="set-deviation" min="0" max="100" value="0">
+              <div class="set-hint">玩家行为对世界的影响程度</div>
+            </div>
+          </div>
+        </div>
+        <div class="set-sec">
+          <div class="set-sec-t">全局设定</div>
+          <div class="form-g">
+            <label class="form-l">API端点（只支持OpenAI格式）</label>
+            <input type="text" class="form-in" id="set-api-url" placeholder="留空则使用当前酒馆的API">
+            <div class="set-hint">例如: https://api.openai.com/v1</div>
+          </div>
+          <div class="form-g">
+            <label class="form-l">API密钥</label>
+            <input type="password" class="form-in" id="set-api-key" placeholder="输入API密钥">
+          </div>
+          <div class="form-g">
+            <label class="form-l">模型</label>
+            <div class="set-row">
+              <input type="text" class="form-in" id="set-model" placeholder="输入模型名称">
+              <button class="btn btn-s" id="btn-fetch-models">获取</button>
+              <button class="btn btn-s btn-p" id="btn-test-conn">测试连接</button>
+            </div>
+            <select class="form-in" id="set-model-list" style="display:none;margin-top:8px"></select>
+          </div>
+          <div class="set-test">
+            <label class="form-l">聊天历史楼层数</label><input type="number" class="form-in" id="set-history-count" min="0" max="200" value="50" style="width:100px">
+            <div class="set-test-res" id="test-res"></div>
+          </div>
+          <div class="set-sec-t" style="margin-top:16px">NPC 世界书条目</div>
+          <div class="form-g">
+            <label class="form-l">插入位置</label>
+            <select class="form-in" id="set-npc-position">
+              <option value="0">↑Char 角色定义前</option>
+              <option value="1">↓Char 角色定义后</option>
+              <option value="2">↑AN 作者注释前</option>
+              <option value="3">↓AN 作者注释后</option>
+              <option value="5">↑EM 增强定义前</option>
+              <option value="6">↓EM 增强定义后</option>
+            </select>
+            <div class="set-hint">生成的NPC角色卡世界书条目的插入位置</div>
+          </div>
+          <div class="form-g">
+            <label class="form-l">条目顺序</label>
+            <input type="number" class="form-in" id="set-npc-order" min="0" max="1000" value="100" style="width:120px">
+            <div class="set-hint">数值越小越靠前（范围：0-1000）</div>
+          </div>
+        </div>
+        <div class="set-sec">
+          <div class="set-sec-t">预设 Story Outline 数据</div>
+          <div class="set-hint" style="margin-bottom:12px">勾选的条目将写入预设的 Story Outline 中</div>
+          <div id="data-list"></div>
+        </div>
+        <!-- 高级设置：提示词模板 -->
+        <div class="set-sec">
+          <div class="set-sec-t fc" style="cursor:pointer;user-select:none" id="adv-toggle">
+            <i class="fa-solid fa-chevron-right" id="adv-arrow" style="transition:transform .2s;margin-right:8px;font-size:12px"></i>
+            高级设置 - 提示词模板
+          </div>
+          <div id="adv-content" style="display:none">
+            <div class="set-hint" style="margin:12px 0">点击条目编辑提示词模板，每个字段对应一轮对话。修改后点击「保存」生效。</div>
+            <div class="set-sec-t" style="font-size:13px;margin-bottom:8px">变量说明</div>
+            <div class="set-hint" style="margin-bottom:12px;font-size:11px;line-height:1.8">
+              使用 <code style="background:#e0e0e0;padding:1px 4px;border-radius:2px">${'${变量名}'}</code> 格式引用变量。<br>
+              <b>通用变量：</b>worldInfo（世界书+角色描述）、history(N)（最近N条聊天）、_outline（剧情大纲）<br>
+              <b>短信/邀请：</b>contactName、userName、smsHistoryContent、userMessage、_character、targetLocation<br>
+              <b>总结压缩：</b>existingSummaryContent、conversationText<br>
+              <b>NPC生成：</b>strangerName、strangerInfo<br>
+              <b>陌路人提取：</b>_existingNames<br>
+              <b>世界生成：</b>playerRequests<br>
+              <b>世界推演：</b>currentWorldData<br>
+              <b>场景切换：</b>_prevLocation、_targetLocation、_timeline、playerAction、lLevel
+            </div>
+            <div class="set-sec-t" style="font-size:13px;margin-bottom:8px">提示词模板</div>
+            <div id="prompt-list"></div>
+            <div class="set-sec-t" style="font-size:13px;margin:16px 0 8px">JSON 输出模板</div>
+            <div id="json-list"></div>
+            <div class="fc g8" style="margin-top:16px">
+              <button class="btn btn-s" id="btn-reset-all-prompts"><i class="fa-solid fa-rotate-left"></i> 重置全部模板</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-ft fc"><button class="btn btn-s m-cancel">取消</button><button class="btn btn-s btn-p" id="set-save">保存</button></div>
+    </div>
+  </div>
+
+  <div class="modal" id="m-data-edit">
+    <div class="modal-bd"></div>
+    <div class="modal-p">
+      <div class="modal-hd fc">
+        <h2 id="data-edit-title">编辑数据</h2><button class="modal-x fcc">✕</button>
+      </div>
+      <div class="modal-by">
+        <textarea class="ed-ta" id="data-edit-ta" style="min-height:300px"></textarea>
+        <div class="ed-err" id="data-edit-err"></div>
+      </div>
+      <div class="modal-ft fc"><button class="btn btn-s m-cancel">取消</button><button class="btn btn-s btn-p" id="data-edit-save">保存</button></div>
+    </div>
+  </div>
+
+  <!-- 提示词模板编辑模态框 -->
+  <div class="modal" id="m-prompt-edit">
+    <div class="modal-bd"></div>
+    <div class="modal-p lg">
+      <div class="modal-hd fc">
+        <h2 id="prompt-edit-title">编辑提示词模板</h2><button class="modal-x fcc">✕</button>
+      </div>
+      <div class="modal-by ofy" style="max-height:60vh">
+        <div id="prompt-edit-fields"></div>
+        <div class="ed-err" id="prompt-edit-err"></div>
+      </div>
+      <div class="modal-ft fc"><button class="btn btn-s m-cancel">取消</button><button class="btn btn-s" id="prompt-edit-reset">恢复默认</button><button class="btn btn-s btn-p" id="prompt-edit-save">保存</button></div>
+    </div>
+  </div>
+
+  <div class="modal" id="m-goto">
+    <div class="modal-bd"></div>
+    <div class="modal-p sm">
+      <div class="modal-hd fc">
+        <h2>确认前往</h2><button class="modal-x fcc">✕</button>
+      </div>
+      <div class="modal-by">
+        <div class="goto-d" id="goto-d"></div>
+        <div class="form-g"><label class="form-l">任务目标（可选）</label><textarea class="form-in form-ta" id="goto-task" placeholder="描述你要做什么..."></textarea></div>
+      </div>
+      <div class="modal-ft fc"><button class="btn btn-s m-cancel">取消</button><button class="btn btn-s btn-p" id="goto-ok">确认前往</button></div>
+    </div>
+  </div>
+
+  <div class="modal" id="m-invite">
+    <div class="modal-bd"></div>
+    <div class="modal-p sm">
+      <div class="modal-hd fc">
+        <h2>邀请前往</h2><button class="modal-x fcc">✕</button>
+      </div>
+      <div class="modal-by">
+        <div class="goto-d" id="inv-t"></div>
+        <div class="form-g"><label class="form-l">选择地点</label>
+          <div class="loc-list" id="loc-list"></div>
+        </div>
+      </div>
+      <div class="modal-ft fc"><button class="btn btn-s m-cancel">取消</button><button class="btn btn-s btn-p" id="inv-ok">发送邀请</button></div>
+    </div>
+  </div>
+
+  <!-- 世界生成弹窗 -->
+  <div class="modal" id="m-world-gen">
+    <div class="modal-bd"></div>
+    <div class="modal-p">
+      <div class="modal-hd fc">
+        <h2>世界生成</h2><button class="modal-x fcc">✕</button>
+      </div>
+      <div class="modal-by">
+        <div class="form-g">
+          <label class="form-l">玩家特殊需求（可选）</label>
+          <textarea class="form-in form-ta" id="world-gen-req" rows="4" placeholder="例如：希望有更多悬疑元素、增加一个神秘组织、主角是侦探..."></textarea>
+          <div class="set-hint">AI 会根据当前世界观和你的需求生成完整的世界数据</div>
+        </div>
+        <div id="world-gen-status" class="set-hint" style="color:#4a9;display:none"></div>
+      </div>
+      <div class="modal-ft fc">
+        <button class="btn btn-s m-cancel">取消</button>
+        <button class="btn btn-s btn-p" id="world-gen-ok"><i class="fa-solid fa-wand-magic-sparkles"></i> 开始生成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 世界推演弹窗 -->
+  <div class="modal" id="m-world-sim">
+    <div class="modal-bd"></div>
+    <div class="modal-p">
+      <div class="modal-hd fc">
+        <h2>世界推演</h2><button class="modal-x fcc">✕</button>
+      </div>
+      <div class="modal-by">
+        <div class="form-g">
+          <div class="set-hint" style="margin-bottom:12px;">
+            <strong>推演模式</strong>：根据玩家行为和时间流逝，演化世界状态。<br>
+            <ul style="margin:8px 0;padding-left:20px;font-size:12px;">
+              <li>L1/L2（表象/痕迹）将大幅更新</li>
+              <li>L3/L4（机制/节点）适度调整</li>
+              <li>L5/L6/L7（核心）保持不变</li>
+              <li>约30%的次级地点可能变化</li>
+              <li>Stage 将推进到下一阶段</li>
+            </ul>
+          </div>
+          <div class="set-hint" style="color:#f80;">
+            ⚠️ 注意：此操作会覆盖当前的世界数据，建议先备份
+          </div>
+        </div>
+        <div id="world-sim-status" class="set-hint" style="color:#4a9;display:none"></div>
+      </div>
+      <div class="modal-ft fc">
+        <button class="btn btn-s m-cancel">取消</button>
+        <button class="btn btn-s btn-p" id="world-sim-ok"><i class="fa-solid fa-rotate"></i> 开始推演</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="m-add-ct">
+    <div class="modal-bd"></div>
+    <div class="modal-p sm">
+      <div class="modal-hd fc">
+        <h2>添加联络人</h2><button class="modal-x fcc">✕</button>
+      </div>
+      <div class="modal-by">
+        <div class="form-g">
+          <label class="form-l">UID（世界书条目UID）</label>
+          <div class="set-row">
+            <input type="text" class="form-in" id="add-uid" placeholder="请输入世界书条目UID">
+            <button class="btn btn-s" id="btn-check-uid"><i class="fa-solid fa-search"></i> 检查</button>
+          </div>
+          <div class="set-hint">输入角色卡绑定世界书的条目UID</div>
+        </div>
+        <div class="form-g" id="name-select-group" style="display:none">
+          <label class="form-l">选择名字（主要关键字）</label>
+          <select class="form-in" id="add-name">
+            <option value="">-- 请选择 --</option>
+          </select>
+        </div>
+        <div id="uid-check-err" class="ed-err"></div>
+      </div>
+      <div class="modal-ft fc">
+        <button class="btn btn-s m-cancel">取消</button>
+        <button class="btn btn-s btn-p" id="add-ct-ok" disabled>确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WORLD = {
+      news: [{
+          title: "市政广场举办秋季市集",
+          time: "3小时前",
+          type: "main",
+          content: "一年一度的秋季市集盛大开幕，各地商贩云集。"
+        },
+        {
+          title: "北城门加强戒备",
+          time: "昨天",
+          type: "main",
+          content: "由于近期北方荒野出现异常活动，北城门已加派守卫巡逻。"
+        },
+        {
+          title: "渔村码头发现古老遗迹",
+          time: "2天前",
+          type: "sub",
+          content: "渔民在码头附近的海底发现了疑似古代文明遗迹。"
+        }
+      ],
+      progress: {
+        chapter: "第一章 · 觉醒",
+        percent: 35
+      }
+    };
+    const MAP_OUTDOOR = {
+      name: "大地图",
+      description: "你站在城市的中心。向东是[[市政广场]]与[[东商业街]]，东南可达[[河畔集市]]和[[渔村码头]]。北面是[[北城门]]，城外是[[北丘陵]]和[[猎人营地]]。西边是[[西铁匠铺]]和[[西树林]]。南郊是[[南郊农田]]和[[果园小屋]]。西北矗立着废弃的[[旧瞭望塔]]。你的[[家]]在城中一隅。",
+      nodes: [{
+          name: "家",
+          position: "south",
+          distant: 1,
+          type: "home",
+          info: "你温馨的小屋，一切冒险的起点与归宿。"
+        },
+        {
+          name: "市政广场",
+          position: "east",
+          distant: 1,
+          type: "main",
+          info: "城市心脏，宽阔石板广场上矗立着古老喷泉。"
+        },
+        {
+          name: "北城门",
+          position: "north",
+          distant: 2,
+          type: "main",
+          info: "厚重橡木城门，两侧高耸石砌城墙。"
+        },
+        {
+          name: "北丘陵",
+          position: "northwest",
+          distant: 3,
+          type: "sub",
+          info: "起伏丘陵覆盖茂密灌木野草。"
+        },
+        {
+          name: "猎人营地",
+          position: "northeast",
+          distant: 3,
+          type: "sub",
+          info: "皮革帐篷围成一圈，中央篝火熊熊。"
+        },
+        {
+          name: "东商业街",
+          position: "east",
+          distant: 1,
+          type: "main",
+          info: "街道两旁店铺林立，应有尽有。"
+        },
+        {
+          name: "河畔集市",
+          position: "east",
+          distant: 2,
+          type: "main",
+          info: "沿河露天市场，摊位延伸到水边。"
+        },
+        {
+          name: "渔村码头",
+          position: "southeast",
+          distant: 3,
+          type: "sub",
+          info: "简陋木质码头延伸入平静河水。"
+        },
+        {
+          name: "南郊农田",
+          position: "south",
+          distant: 2,
+          type: "main",
+          info: "一望无际农田闪耀金色光芒。"
+        },
+        {
+          name: "果园小屋",
+          position: "southwest",
+          distant: 3,
+          type: "sub",
+          info: "果树环绕的小木屋，屋顶爬满常春藤。"
+        },
+        {
+          name: "西铁匠铺",
+          position: "west",
+          distant: 1,
+          type: "main",
+          info: "炉火熊熊，铁锤敲击声有节奏响起。"
+        },
+        {
+          name: "西树林",
+          position: "west",
+          distant: 2,
+          type: "sub",
+          info: "高大橡树遮天蔽日，光影斑驳。"
+        },
+        {
+          name: "旧瞭望塔",
+          position: "northwest",
+          distant: 4,
+          type: "sub",
+          info: "废弃石制瞭望塔，墙壁爬满青苔藤蔓。"
+        }
+      ]
+    };
+    const MAP_INDOOR = {
+      name: "酒馆内部",
+      description: "推开[[入口]]木门，麦酒烤肉香气扑面。正前方是[[吧台]]，左侧有[[角落座位]]，右边是[[壁炉旁]]，北侧通往[[储藏室]]，东北是[[楼梯口]]。",
+      nodes: [{
+          name: "入口",
+          position: "south",
+          distant: 1,
+          type: "main",
+          info: "厚重橡木门装着黄铜把手。"
+        },
+        {
+          name: "吧台",
+          position: "north",
+          distant: 1,
+          type: "main",
+          info: "橡木吧台被岁月打磨得油光锃亮。"
+        },
+        {
+          name: "角落座位",
+          position: "southwest",
+          distant: 2,
+          type: "sub",
+          info: "屏风酒桶半遮掩的隐蔽角落。"
+        },
+        {
+          name: "壁炉旁",
+          position: "east",
+          distant: 2,
+          type: "sub",
+          info: "石砌壁炉火焰跳动，温暖辐射。"
+        },
+        {
+          name: "楼梯口",
+          position: "northeast",
+          distant: 2,
+          type: "sub",
+          info: "通往二楼的木制楼梯。"
+        },
+        {
+          name: "储藏室",
+          position: "northwest",
+          distant: 2,
+          type: "sub",
+          info: "木门后堆满酒桶物资的储藏室。"
+        }
+      ]
+    };
+    const STRANGERS = [{
+        name: '神秘商人',
+        avatar: '神',
+        color: '#999',
+        location: '市政广场',
+        info: '来自北方的神秘商人，总戴着兜帽。'
+      },
+      {
+        name: '老猎人',
+        avatar: '猎',
+        color: '#777',
+        location: '猎人营地',
+        info: '北方荒野狩猎三十年的老猎人。'
+      },
+      {
+        name: '渔村少女',
+        avatar: '渔',
+        color: '#888',
+        location: '渔村码头',
+        info: '渔村长大的活泼少女。'
+      }
+    ];
+    const CONTACTS = [{
+      name: '炒饭智能',
+      avatar: '炒',
+      color: '#555',
+      location: '在线',
+      info: '你的智能助手，随时待命。',
+      online: true,
+      worldbookUid: '',
+      messages: [{
+        type: 'received',
+        text: '你好！有什么可以帮助你的？',
+        time: '10:30'
+      }],
+      summarizedCount: 0
+    }];
+    const D = {
+      stage: 0,
+      deviationScore: 0,
+      meta: null,
+      timeline: null,
+      world: WORLD,
+      maps: {
+        outdoor: MAP_OUTDOOR,
+        indoor: MAP_INDOOR
+      },
+      sceneSetup: null,
+      contacts: {
+        strangers: STRANGERS,
+        contacts: CONTACTS
+      }
+    };
+    const $ = id => document.getElementById(id),
+      $$ = s => document.querySelectorAll(s),
+      isMob = () => innerWidth <= 768;
+    const dirMap = {
+      north: [0, -1],
+      south: [0, 1],
+      east: [1, 0],
+      west: [-1, 0],
+      northeast: [1, -1],
+      northwest: [-1, -1],
+      southeast: [1, 1],
+      southwest: [-1, 1]
+    };
+    let mapType = 'outdoor',
+      curNode = null,
+      curLocation = null,
+      drag = false,
+      scale = 1,
+      offX = 0,
+      offY = 0,
+      seed = 123456789,
+      nodes = [],
+      lines = [],
+      anim = false,
+      chatTgt = null,
+      invTgt = null,
+      selLoc = null;
+    const rand = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    const inner = $("inner"),
+      svg = $("lines"),
+      mapWrap = $("mapWrap"),
+      popup = $('mob-pop'),
+      chat = $('chat');
+    const bindFold = el => el.querySelector('.fold-h').onclick = () => el.classList.toggle('exp');
+    const openM = id => $(id).classList.add('act'),
+      closeM = id => $(id).classList.remove('act');
+    $$('.modal-bd,.modal-x,.m-cancel').forEach(el => el.onclick = () => el.closest('.modal').classList.remove('act'));
+    const snaps = () => [120, innerHeight * .35, innerHeight * .7];
+    let popH = 0,
+      popDrag = false,
+      popSY = 0,
+      popSH = 0,
+      popLv = 1;
+    const inds = popup.querySelectorAll('.pop-h-ind span');
+    const setPopH = h => {
+      const s = snaps();
+      popH = Math.max(s[0], Math.min(innerHeight * .85, h));
+      popup.style.height = popH + 'px';
+      popLv = s.map((v, i) => [i, Math.abs(popH - v)]).sort((a, b) => a[1] - b[1])[0][0];
+      inds.forEach((x, i) => x.classList.toggle('act', i === popLv))
+    };
+    const snapTo = l => {
+      popLv = Math.max(0, Math.min(2, l));
+      setPopH(snaps()[popLv])
+    };
+    const openPop = (l = 1) => {
+      popup.classList.add('act');
+      snapTo(l)
+    };
+    $('pop-hd').ontouchstart = e => {
+      popDrag = true;
+      popSY = e.touches[0].clientY;
+      popSH = popH || snaps()[1];
+      popup.classList.add('drag')
+    };
+    document.ontouchmove = e => popDrag && setPopH(popSH + popSY - e.touches[0].clientY);
+    document.ontouchend = () => {
+      if (!popDrag) return;
+      popDrag = false;
+      popup.classList.remove('drag');
+      snapTo(popLv)
+    };
+    $('pop-hd').onmousedown = e => {
+      popDrag = true;
+      popSY = e.clientY;
+      popSH = popH || snaps()[1];
+      popup.classList.add('drag');
+      e.preventDefault()
+    };
+    document.onmousemove = e => popDrag && setPopH(popSH + popSY - e.clientY);
+    document.onmouseup = () => {
+      if (!popDrag) return;
+      popDrag = false;
+      popup.classList.remove('drag');
+      snapTo(popLv)
+    };
+    const parseLinks = t => t.replace(/\[\[([^\]]+)\]\]/g, '<span class="loc-lk" data-loc="$1">$1</span>');
+    const bindLinks = el => el.querySelectorAll('.loc-lk').forEach(l => l.onclick = e => {
+      e.stopPropagation();
+      const n = nodes.find(x => x.name === l.dataset.loc);
+      if (n) {
+        panTo(n);
+        showInfo(n)
+      }
+    });
+    // ================== 短信聊天功能 ==================
+    let smsGenerating = false;
+    let smsRequestId = 0;
+    const openChat = c => {
+      chatTgt = c;
+      $('chat-av').textContent = c.avatar;
+      $('chat-av').style.background = c.color;
+      $('chat-nm').textContent = c.name;
+      $('chat-st').textContent = c.online ? '● 在线' : c.location;
+      // 尝试从世界书加载聊天记录
+      if (c.worldbookUid && (!c.messages || !c.messages.length)) {
+        loadChatFromWorldbook(c);
+      } else {
+        renderMsgs();
+      }
+      chat.classList.add('act');
+      $('chat-in').focus();
+    };
+    const closeChat = () => {
+      chat.classList.remove('act');
+      chatTgt = null;
+      smsGenerating = false;
+    };
+    const renderMsgs = () => {
+      if (!chatTgt) return;
+      const m = chatTgt.messages || [];
+      const summarizedCount = chatTgt.summarizedCount || 0;
+      let html = '';
+      if (m.length) {
+        m.forEach((x, i) => {
+          // 在已总结消息和未总结消息之间插入分隔线
+          if (summarizedCount > 0 && i === summarizedCount) {
+            html += '<div class="chat-divider">—— 以上为已总结消息 ——</div>';
+          }
+          html += `<div class="chat-msg ${x.type === 'sent' ? 'sent' : 'recv'}${x.typing ? ' typing' : ''}"><div>${escapeHtml(stripXmlTags(x.text))}</div></div>`;
+        });
+      } else {
+        html = '<div class="chat-emp">暂无消息，开始聊天吧</div>';
+      }
+      $('chat-msgs').innerHTML = html;
+      $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
+      // 更新压缩按钮状态（至少有2条未总结消息才能压缩）
+      const unsummarizedCount = m.length - summarizedCount;
+      $('chat-compress').disabled = unsummarizedCount < 2 || smsGenerating;
+    };
+    const escapeHtml = str => str.replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[c]);
+    // 过滤 XML 标签及其内容（如 <thinking>...</thinking>）
+    const stripXmlTags = str => {
+      if (!str) return '';
+      // 移除成对的 XML 标签及其内容（支持嵌套）
+      let result = str;
+      let prev = '';
+      // 循环处理嵌套标签
+      while (result !== prev) {
+        prev = result;
+        result = result.replace(/<(\w+)[^>]*>[\s\S]*?<\/\1>/g, '');
+      }
+      // 移除自闭合标签
+      result = result.replace(/<[^>]+\/>/g, '');
+      // 移除剩余的单独标签
+      result = result.replace(/<[^>]+>/g, '');
+      return result.trim();
+    };
+    const sendMsg = () => {
+      const t = $('chat-in').value.trim();
+      if (!t || !chatTgt || smsGenerating) return;
+      chatTgt.messages = chatTgt.messages || [];
+      chatTgt.messages.push({
+        type: 'sent',
+        text: t
+      });
+      $('chat-in').value = '';
+      renderMsgs();
+      // 添加"正在输入"提示
+      smsGenerating = true;
+      $('chat-in').disabled = true;
+      $('chat-send').disabled = true;
+      chatTgt.messages.push({
+        type: 'received',
+        text: '正在输入...',
+        typing: true
+      });
+      renderMsgs();
+      const requestId = ++smsRequestId;
+      // 发送到父窗口请求 AI 生成
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SEND_SMS',
+        requestId,
+        contactName: chatTgt.name,
+        worldbookUid: chatTgt.worldbookUid,
+        userMessage: t,
+        chatHistory: chatTgt.messages.filter(m => !m.typing).slice(-20) // 最近20条作为上下文
+      }, '*');
+    };
+    const handleSmsResult = (data) => {
+      if (data.requestId !== smsRequestId) return;
+      if (!chatTgt) return;
+      smsGenerating = false;
+      $('chat-in').disabled = false;
+      $('chat-send').disabled = false;
+      // 移除"正在输入"消息
+      chatTgt.messages = chatTgt.messages.filter(m => !m.typing);
+      if (data.error) {
+        chatTgt.messages.push({
+          type: 'received',
+          text: `[错误] ${data.error}`
+        });
+      } else if (data.reply) {
+        // 过滤 XML 标签后保存
+        const cleanReply = stripXmlTags(data.reply);
+        chatTgt.messages.push({
+          type: 'received',
+          text: cleanReply
+        });
+      }
+      renderMsgs();
+      saveContactsData();
+      // 保存到世界书
+      if (chatTgt.worldbookUid) {
+        saveChatToWorldbook(chatTgt);
+      }
+    };
+    const handleSmsStream = (data) => {
+      if (data.requestId !== smsRequestId) return;
+      if (!chatTgt) return;
+      // 更新正在输入的消息内容
+      const typingMsg = chatTgt.messages.find(m => m.typing);
+      if (typingMsg && data.text) {
+        typingMsg.text = data.text;
+        renderMsgs();
+      }
+    };
+    const loadChatFromWorldbook = (contact) => {
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'LOAD_SMS_HISTORY',
+        worldbookUid: contact.worldbookUid
+      }, '*');
+    };
+    const handleLoadSmsHistory = (data) => {
+      if (!chatTgt || chatTgt.worldbookUid !== data.worldbookUid) return;
+      if (data.messages && data.messages.length) {
+        chatTgt.messages = data.messages;
+        chatTgt.summarizedCount = data.summarizedCount || 0;
+        saveContactsData();
+      }
+      renderMsgs();
+    };
+    const saveChatToWorldbook = (contact) => {
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SAVE_SMS_HISTORY',
+        worldbookUid: contact.worldbookUid,
+        contactName: contact.name,
+        messages: contact.messages.filter(m => !m.typing),
+        summarizedCount: contact.summarizedCount || 0
+      }, '*');
+    };
+    const clearChat = () => {
+      if (!chatTgt) return;
+      if (!confirm(`确定要清空与 ${chatTgt.name} 的所有聊天记录吗？`)) return;
+      chatTgt.messages = [];
+      chatTgt.summarizedCount = 0;
+      renderMsgs();
+      saveContactsData();
+      // 清空世界书中的记录
+      if (chatTgt.worldbookUid) {
+        saveChatToWorldbook(chatTgt);
+      }
+    };
+    // ================== 压缩总结功能 ==================
+    let compressRequestId = 0;
+    const compressChat = () => {
+      if (!chatTgt || smsGenerating) return;
+      const messages = chatTgt.messages || [];
+      const summarizedCount = chatTgt.summarizedCount || 0;
+      const unsummarizedMsgs = messages.slice(summarizedCount);
+      if (unsummarizedMsgs.length < 2) {
+        alert('至少需要2条未总结的消息才能压缩');
+        return;
+      }
+      if (!confirm(`确定要压缩总结 ${unsummarizedMsgs.length} 条消息吗？\n总结后这些消息将被标记为已总结。`)) return;
+      // 禁用按钮
+      smsGenerating = true;
+      $('chat-compress').disabled = true;
+      $('chat-in').disabled = true;
+      $('chat-send').disabled = true;
+      const requestId = ++compressRequestId;
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'COMPRESS_SMS',
+        requestId,
+        contactName: chatTgt.name,
+        worldbookUid: chatTgt.worldbookUid,
+        messages: messages.filter(m => !m.typing),
+        summarizedCount: summarizedCount
+      }, '*');
+    };
+    const handleCompressResult = (data) => {
+      if (data.requestId !== compressRequestId) return;
+      if (!chatTgt) return;
+      smsGenerating = false;
+      $('chat-compress').disabled = false;
+      $('chat-in').disabled = false;
+      $('chat-send').disabled = false;
+      if (data.error) {
+        alert(`压缩失败: ${data.error}`);
+        return;
+      }
+      if (data.newSummarizedCount !== undefined) {
+        // 更新已总结消息数量（前端保留完整消息，只更新分隔线位置）
+        chatTgt.summarizedCount = data.newSummarizedCount;
+        renderMsgs();
+        saveContactsData();
+        // 不需要再同步到世界书，因为 JS 端已经保存了（世界书只存总结+未总结消息）
+        console.log('[Story Outline] Compression complete, summarizedCount:', data.newSummarizedCount);
+      }
+    };
+    $('chat-x').onclick = closeChat;
+    $('chat-clr').onclick = clearChat;
+    $('chat-compress').onclick = compressChat;
+    $('chat-send').onclick = sendMsg;
+    // 确保输入框可以正常接收键盘输入
+    const chatInput = $('chat-in');
+    chatInput.addEventListener('keydown', e => {
+      e.stopPropagation(); // 阻止事件冒泡到父级
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMsg();
+      }
+    });
+    // 阻止其他可能干扰输入的事件
+    chatInput.addEventListener('keypress', e => e.stopPropagation());
+    chatInput.addEventListener('keyup', e => e.stopPropagation());
+    const openInv = c => {
+      invTgt = c;
+      selLoc = null;
+      $('inv-t').textContent = `邀请：${c.name}`;
+      $('loc-list').innerHTML = D.maps.outdoor.nodes.map(l => `<div class="loc-i" data-n="${l.name}"><div class="loc-i-nm">${l.name}</div><div class="loc-i-info">${l.info||''}</div></div>`).join('');
+      $$('#loc-list .loc-i').forEach(i => i.onclick = () => {
+        $$('#loc-list .loc-i').forEach(x => x.classList.remove('sel'));
+        i.classList.add('sel');
+        selLoc = i.dataset.n
+      });
+      openM('m-invite')
+    };
+    
+    // 邀请相关状态
+    let pendingInvite = null;
+    
+    $('inv-ok').onclick = () => {
+      if (!selLoc || !invTgt) return;
+      
+      const btn = $('inv-ok');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 询问中...';
+      
+      // 构建短信历史
+      const smsHistory = (invTgt.messages || [])
+        .map(m => m.type === 'sent' ? `{{user}}: ${m.text}` : `${invTgt.name}: ${m.text}`)
+        .join('\n');
+      
+      // 生成请求ID
+      const requestId = 'invite_' + Date.now();
+      
+      // 保存状态
+      pendingInvite = {
+        requestId,
+        contact: invTgt,
+        targetLocation: selLoc
+      };
+      
+      // 发送邀请请求
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SEND_INVITE',
+        requestId,
+        contactName: invTgt.name,
+        contactUid: invTgt.worldbookUid,
+        targetLocation: selLoc,
+        smsHistory,
+        userLocation: curLocation?.name || ''
+      }, '*');
+    };
+    
+    function handleSendInviteResult(data) {
+      if (!pendingInvite || pendingInvite.requestId !== data.requestId) return;
+      
+      const { contact, targetLocation } = pendingInvite;
+      pendingInvite = null;
+      
+      const btn = $('inv-ok');
+      btn.disabled = false;
+      btn.innerHTML = '发送邀请';
+      
+      if (data.error) {
+        alert('邀请失败: ' + data.error);
+        return;
+      }
+      
+      if (data.success && data.inviteData) {
+        const inv = data.inviteData;
+        
+        // 添加邀请消息到短信历史
+        contact.messages = contact.messages || [];
+        contact.messages.push({
+          type: 'sent',
+          text: `我邀请你前往「${targetLocation}」`
+        });
+        contact.messages.push({
+          type: 'received',
+          text: inv.reply
+        });
+        
+        if (inv.accepted) {
+          // 接受邀请：更新位置，设置等待标记（如果不是立即到达）
+          contact.location = targetLocation;
+          if (!inv.sendNow) {
+            // 用户不在目标地点，标记角色正在前往
+            contact.pendingArrival = targetLocation;
+          }
+          alert(`${contact.name} 接受了邀请！\n回复: ${inv.reply}`);
+        } else {
+          // 拒绝邀请
+          alert(`${contact.name} 拒绝了邀请。\n回复: ${inv.reply}`);
+        }
+        
+        saveContactsData();
+        if (contact.worldbookUid) saveChatToWorldbook(contact);
+        closeM('m-invite');
+        render();
+        openChat(contact);
+      }
+    }
+    // ================== 添加联络人功能 ==================
+    let addContactState = {
+      uid: '',
+      selectedName: '',
+      primaryKeys: []
+    };
+
+    function resetAddContactModal() {
+      addContactState = {
+        uid: '',
+        selectedName: '',
+        primaryKeys: []
+      };
+      $('add-uid').value = '';
+      $('add-name').value = '';
+      $('add-name').innerHTML = '<option value="">-- 请选择 --</option>';
+      $('name-select-group').style.display = 'none';
+      $('uid-check-err').classList.remove('vis');
+      $('uid-check-err').textContent = '';
+      $('add-ct-ok').disabled = true;
+      $('btn-check-uid').disabled = false;
+      $('btn-check-uid').innerHTML = '<i class="fa-solid fa-search"></i> 检查';
+    }
+
+    function showUidError(msg) {
+      $('uid-check-err').textContent = msg;
+      $('uid-check-err').classList.add('vis');
+    }
+
+    function hideUidError() {
+      $('uid-check-err').classList.remove('vis');
+      $('uid-check-err').textContent = '';
+    }
+
+    function renderNameOptions(keys) {
+      const select = $('add-name');
+      if (!keys || !keys.length) {
+        $('name-select-group').style.display = 'none';
+        select.innerHTML = '<option value="">-- 请选择 --</option>';
+        return;
+      }
+      select.innerHTML = '<option value="">-- 请选择 --</option>' +
+        keys.map(k => `<option value="${k}">${k}</option>`).join('');
+      select.onchange = () => {
+        addContactState.selectedName = select.value;
+        $('add-ct-ok').disabled = !select.value;
+      };
+      $('name-select-group').style.display = 'block';
+    }
+    // 生成唯一请求ID
+    let uidCheckRequestId = 0;
+    $('btn-check-uid').onclick = async () => {
+      const uid = $('add-uid').value.trim();
+      if (!uid) {
+        showUidError('请输入UID');
+        return;
+      }
+      hideUidError();
+      $('btn-check-uid').disabled = true;
+      $('btn-check-uid').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 检查中...';
+      $('name-select-group').style.display = 'none';
+      $('add-name').value = '';
+      $('add-ct-ok').disabled = true;
+      const requestId = ++uidCheckRequestId;
+      addContactState.uid = uid;
+      // 发送请求到父窗口获取世界书条目信息
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'CHECK_WORLDBOOK_UID',
+        uid: uid,
+        requestId: requestId
+      }, '*');
+    };
+    // 处理检查 UID 结果
+    function handleCheckUidResult(data) {
+      // 重置按钮状态
+      $('btn-check-uid').disabled = false;
+      $('btn-check-uid').innerHTML = '<i class="fa-solid fa-search"></i> 检查';
+      // 检查请求ID是否匹配（防止过期响应）
+      if (data.requestId !== uidCheckRequestId) return;
+      if (data.error) {
+        showUidError(data.error);
+        return;
+      }
+      if (!data.primaryKeys || !data.primaryKeys.length) {
+        showUidError('该条目没有主要关键字');
+        return;
+      }
+      // 保存主要关键字
+      addContactState.primaryKeys = data.primaryKeys;
+      // 渲染名字选项
+      renderNameOptions(data.primaryKeys);
+      // 如果只有一个关键字，自动选择
+      if (data.primaryKeys.length === 1) {
+        addContactState.selectedName = data.primaryKeys[0];
+        $('add-name').value = addContactState.selectedName;
+        $('add-ct-ok').disabled = false;
+      }
+    }
+    $('btn-add-ct').onclick = () => {
+      resetAddContactModal();
+      openM('m-add-ct')
+    };
+    $('add-ct-ok').onclick = () => {
+      const uid = addContactState.uid || $('add-uid').value.trim();
+      const name = addContactState.selectedName || $('add-name').value.trim();
+      if (!uid || !name) return;
+      // 检查是否已存在相同 worldbookUid 的联络人
+      if (D.contacts.contacts.some(c => c.worldbookUid === uid)) {
+        showUidError('该联络人已存在');
+        return;
+      }
+      // 添加到联络人列表（简化数据结构）
+      D.contacts.contacts.push({
+        name,
+        avatar: name[0],
+        color: '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'),
+        location: '未知',
+        worldbookUid: uid,
+        messages: []
+      });
+      // 保存联络人数据到聊天元数据
+      saveContactsData();
+      closeM('m-add-ct');
+      render();
+    };
+    // 保存联络人数据到父窗口（聊天元数据）
+    function saveContactsData() {
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SAVE_CONTACTS',
+        contacts: D.contacts.contacts,
+        strangers: D.contacts.strangers
+      }, '*');
+    }
+
+    // ================== 生成 NPC 角色卡并添加联络人 ==================
+    let pendingNpcGeneration = null;
+    let pendingWorldbookCheck = null;
+    
+    function generateAndAddContact(strangerName, strangerInfo, btnElement) {
+      // 禁用按钮，显示加载状态
+      btnElement.disabled = true;
+      btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 检查中...';
+      
+      const requestId = 'check_' + Date.now();
+      pendingWorldbookCheck = {
+        requestId,
+        strangerName,
+        strangerInfo,
+        btnElement
+      };
+      
+      // 先检查世界书是否已有匹配的条目
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'CHECK_STRANGER_WORLDBOOK',
+        requestId,
+        strangerName
+      }, '*');
+    }
+    
+    function handleCheckStrangerWorldbookResult(data) {
+      if (!pendingWorldbookCheck || pendingWorldbookCheck.requestId !== data.requestId) return;
+      
+      const { strangerName, strangerInfo, btnElement } = pendingWorldbookCheck;
+      pendingWorldbookCheck = null;
+      
+      if (data.found && data.worldbookUid) {
+        // 世界书中已有匹配条目，直接添加为联络人
+        console.log('[Story Outline] Found existing worldbook entry for:', strangerName, 'UID:', data.worldbookUid);
+        
+        // 恢复按钮状态
+        btnElement.disabled = false;
+        btnElement.innerHTML = '<i class="fa-solid fa-user-plus"></i> 添加';
+        
+        // 从陌路人列表中找到并移除
+        const i = D.contacts.strangers.findIndex(s => s.name === strangerName);
+        if (i > -1) {
+          const stranger = D.contacts.strangers.splice(i, 1)[0];
+          
+          const newContact = {
+            name: stranger.name,
+            avatar: stranger.avatar || stranger.name[0],
+            color: stranger.color || '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'),
+            location: stranger.location || '未知',
+            info: stranger.info || '',
+            worldbookUid: data.worldbookUid,
+            messages: []
+          };
+          
+          D.contacts.contacts.push(newContact);
+          saveContactsData();
+          render();
+          
+          console.log('[Story Outline] Contact added with existing worldbook entry:', newContact.name);
+        }
+      } else {
+        // 没有匹配的条目，需要用 LLM 生成
+        btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
+        
+        const requestId = 'npc_' + Date.now();
+        pendingNpcGeneration = {
+          requestId,
+          strangerName,
+          strangerInfo,
+          btnElement
+        };
+        
+        // 发送生成请求到父窗口
+        parent.postMessage({
+          source: 'LittleWhiteBox-OutlineFrame',
+          type: 'GENERATE_NPC',
+          requestId,
+          strangerName,
+          strangerInfo
+        }, '*');
+      }
+    }
+    
+    function handleGenerateNpcResult(data) {
+      if (!pendingNpcGeneration || pendingNpcGeneration.requestId !== data.requestId) return;
+      
+      const { strangerName, btnElement } = pendingNpcGeneration;
+      pendingNpcGeneration = null;
+      
+      // 恢复按钮状态
+      btnElement.disabled = false;
+      btnElement.innerHTML = '<i class="fa-solid fa-user-plus"></i> 添加';
+      
+      if (data.error) {
+        alert('生成失败: ' + data.error);
+        return;
+      }
+      
+      if (data.success && data.worldbookUid) {
+        // 从陌路人列表中找到并移除
+        const i = D.contacts.strangers.findIndex(s => s.name === strangerName);
+        if (i > -1) {
+          const stranger = D.contacts.strangers.splice(i, 1)[0];
+          
+          // 使用生成的 NPC 数据更新联络人信息
+          const npcData = data.npcData || {};
+          const newContact = {
+            name: npcData.name || stranger.name,
+            avatar: (npcData.name || stranger.name)[0],
+            color: stranger.color || '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'),
+            location: stranger.location || '未知',
+            info: npcData.intro || stranger.info || '',
+            worldbookUid: data.worldbookUid,
+            messages: []
+          };
+          
+          D.contacts.contacts.push(newContact);
+          saveContactsData();
+          render();
+          
+          // 提示成功
+          console.log('[Story Outline] NPC generated and added:', newContact.name, 'UID:', data.worldbookUid);
+        }
+      }
+    }
+
+    // ================== 刷新陌路人（从聊天记录提取） ==================
+    let pendingExtractStrangers = null;
+    
+    $('btn-refresh-strangers').onclick = () => {
+      const btn = $('btn-refresh-strangers');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      
+      const requestId = 'extract_' + Date.now();
+      pendingExtractStrangers = { requestId, btn };
+      
+      // 发送提取请求
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'EXTRACT_STRANGERS',
+        requestId,
+        existingContacts: D.contacts.contacts,
+        existingStrangers: D.contacts.strangers
+      }, '*');
+    };
+    
+    function handleExtractStrangersResult(data) {
+      if (!pendingExtractStrangers || pendingExtractStrangers.requestId !== data.requestId) return;
+      
+      const { btn } = pendingExtractStrangers;
+      pendingExtractStrangers = null;
+      
+      // 恢复按钮状态
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+      
+      if (data.error) {
+        alert('提取失败: ' + data.error);
+        return;
+      }
+      
+      if (data.success && Array.isArray(data.strangers)) {
+        const newStrangers = data.strangers;
+        
+        if (newStrangers.length === 0) {
+          alert('没有发现新的陌路人');
+          return;
+        }
+        
+        // 过滤掉已存在的（按名字）
+        const existingNames = [
+          ...D.contacts.contacts.map(c => c.name),
+          ...D.contacts.strangers.map(s => s.name)
+        ];
+        
+        const trulyNew = newStrangers.filter(s => !existingNames.includes(s.name));
+        
+        if (trulyNew.length === 0) {
+          alert('提取的角色都已存在');
+          return;
+        }
+        
+        // 添加到陌路人列表
+        D.contacts.strangers = D.contacts.strangers.concat(trulyNew);
+        saveContactsData();
+        render();
+        
+        console.log('[Story Outline] Extracted strangers:', trulyNew.length);
+        alert(`成功提取 ${trulyNew.length} 个新陌路人`);
+      }
+    }
+
+    // ================== 世界生成 ==================
+    let pendingWorldGen = null;
+    
+    $('world-gen-ok').onclick = () => {
+      const btn = $('world-gen-ok');
+      const statusEl = $('world-gen-status');
+      
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
+      statusEl.style.display = 'block';
+      statusEl.textContent = '正在生成世界数据，请稍候...';
+      
+      const requestId = 'worldgen_' + Date.now();
+      const playerRequests = $('world-gen-req').value.trim();
+      
+      pendingWorldGen = { requestId };
+      
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'GENERATE_WORLD',
+        requestId,
+        playerRequests
+      }, '*');
+    };
+    
+    function handleGenerateWorldResult(data) {
+      if (!pendingWorldGen || pendingWorldGen.requestId !== data.requestId) return;
+      
+      pendingWorldGen = null;
+      
+      const btn = $('world-gen-ok');
+      const statusEl = $('world-gen-status');
+      
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> 开始生成';
+      
+      if (data.error) {
+        statusEl.style.color = '#c44';
+        statusEl.textContent = '生成失败: ' + data.error;
+        return;
+      }
+      
+      if (data.success && data.worldData) {
+        statusEl.style.color = '#4a9';
+        statusEl.textContent = '生成成功！正在应用数据...';
+        
+        // 应用生成的数据
+        const wd = data.worldData;
+        
+        // 更新 D 对象
+        if (wd.meta) D.meta = wd.meta;
+        if (wd.timeline) D.timeline = wd.timeline;
+        if (wd.world) D.world = wd.world;
+        if (wd.maps?.outdoor) D.maps.outdoor = wd.maps.outdoor;
+        if (wd.maps?.indoor) D.maps.indoor = wd.maps.indoor;
+        
+        // 重置 stage 和 deviationScore（后端已重置，前端同步）
+        D.stage = 0;
+        D.deviationScore = 0;
+        
+        // 保存数据
+        saveAllData();
+        render();
+        
+        // 关闭弹窗
+        setTimeout(() => {
+          closeM('m-world-gen');
+          statusEl.style.display = 'none';
+          $('world-gen-req').value = '';
+          alert('世界数据生成完成！Stage 和 Deviation 已重置为 0');
+        }, 500);
+        
+        console.log('[Story Outline] World generated and applied:', wd);
+      }
+    }
+    
+    // 场景切换相关状态
+    let pendingSceneSwitch = null;
+    
+    function handleSceneSwitchResult(data) {
+      if (!pendingSceneSwitch || pendingSceneSwitch.requestId !== data.requestId) return;
+      
+      const { targetNode, prevLocationName } = pendingSceneSwitch;
+      pendingSceneSwitch = null;
+      
+      const btn = $('goto-ok');
+      btn.disabled = false;
+      btn.innerHTML = '确认前往';
+      
+      closeM('m-goto');
+      
+      if (data.error) {
+        alert('场景切换失败: ' + data.error);
+        return;
+      }
+      
+      if (data.success && data.sceneData) {
+        const sc = data.sceneData;
+        
+        // 更新 deviationScore
+        if (typeof sc.newScore === 'number') {
+          D.deviationScore = sc.newScore;
+        }
+        
+        // 保存区域剧情 (scene_setup)
+        if (sc.sideStory) {
+          D.sceneSetup = {
+            sideStory: sc.sideStory,
+            review: sc.review
+          };
+        }
+        
+        // 处理局部地图
+        if (sc.localMap) {
+          // 创建或更新局部地图
+          D.maps.indoor = sc.localMap;
+        }
+        
+        // 处理新发现的陌路人
+        if (sc.strangers?.length) {
+          const existingNames = new Set((D.contacts.strangers || []).map(s => s.name));
+          const newStrangers = sc.strangers.filter(s => !existingNames.has(s.name));
+          D.contacts.strangers = [...(D.contacts.strangers || []), ...newStrangers];
+        }
+        
+        // 更新当前位置为目标节点
+        curLocation = targetNode;
+        
+        // 检查是否有联络人在目标地点等待
+        const waitingContacts = (D.contacts.contacts || []).filter(c => 
+          c.pendingArrival === targetNode.name
+        );
+        
+        // 清除等待标记
+        waitingContacts.forEach(c => {
+          delete c.pendingArrival;
+        });
+        
+        // 保存数据
+        saveAllData();
+        render();
+        hideInfo();
+        
+        // 构建 /send 命令
+        const playerAction = $('goto-task').value || '';
+        let sendMessage = `{{user}}离开了${prevLocationName || '上一地点'}，来到${targetNode.name}。${playerAction ? '意图：' + playerAction : ''}`;
+        
+        // 如果有联络人在等待，添加到消息中
+        if (waitingContacts.length > 0) {
+          const names = waitingContacts.map(c => c.name).join('、');
+          sendMessage += `\n${names}已经在这里等你了。`;
+        }
+        
+        // 准备场景描述
+        let sceneDesc = '';
+        if (sc.review?.deviation?.prev_loc_update) {
+          sceneDesc += sc.review.deviation.prev_loc_update + '\n\n';
+        }
+        if (sc.localMap?.description) {
+          sceneDesc += sc.localMap.description;
+        }
+        if (sc.sideStory?.surface) {
+          sceneDesc += '\n\n' + sc.sideStory.surface;
+        }
+        
+        // 发送 /send 命令到主窗口
+        parent.postMessage({
+          source: 'LittleWhiteBox-OutlineFrame',
+          type: 'EXECUTE_SLASH_COMMAND',
+          command: `/send ${sendMessage}`,
+          sceneDescription: sceneDesc
+        }, '*');
+        
+        console.log('[Story Outline] Scene switch successful:', {
+          targetNode: targetNode.name,
+          scoreDelta: sc.scoreDelta,
+          newScore: sc.newScore,
+          hasLocalMap: !!sc.localMap,
+          newStrangers: sc.strangers?.length || 0
+        });
+        
+        // 显示偏差值变化提示
+        if (sc.scoreDelta !== 0) {
+          const sign = sc.scoreDelta > 0 ? '+' : '';
+          alert(`场景切换完成！\n偏差值变化: ${sign}${sc.scoreDelta} (当前: ${sc.newScore})`);
+        }
+      }
+    }
+    
+    function saveAllData() {
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SAVE_ALL_DATA',
+        allData: {
+          meta: D.meta,
+          timeline: D.timeline,
+          world: D.world,
+          outdoor: D.maps.outdoor,
+          indoor: D.maps.indoor,
+          sceneSetup: D.sceneSetup,
+          strangers: D.contacts.strangers,
+          contacts: D.contacts.contacts
+        }
+      }, '*');
+    }
+
+    function render() {
+      // 世界资讯（安全访问）
+      const news = D.world?.news || [];
+      $('news-list').innerHTML = news.length ? news.map(n => `<div class="fold"><div class="fold-h"><div><div class="news-t">${n.title}</div><div class="news-time">${n.time||''}</div></div><i class="fa-solid fa-chevron-down fold-a"></i></div><div class="fold-b news-b"><p>${n.content}</p></div></div>`).join('') : '<div class="empty">暂无新闻</div>';
+      $$('#news-list .fold').forEach(bindFold);
+      
+      // 进度条（安全访问）
+      const progress = D.world?.progress || { percent: 0, chapter: '未知' };
+      $('prog-fill').style.width = (progress.percent || 0) + '%';
+      $('prog-txt').textContent = `${progress.chapter || '未知'} (${progress.percent || 0}%)`;
+      
+      const renderCt = (list, isS) => (list||[]).length ? list.map(p => `<div class="fold" data-name="${p.name||''}" data-info="${(p.info||'').replace(/"/g, '&quot;')}" data-uid="${p.worldbookUid||''}"><div class="fold-h ct-hd fc"><div class="ct-av" style="background:${p.color}">${p.avatar}</div><div class="ct-info"><div class="ct-name">${p.name}</div><div class="ct-st">${p.online?'● 在线':p.location}</div></div><i class="fa-solid fa-chevron-down fold-a"></i></div><div class="fold-b"><div class="ct-det">${p.info?`<div class="ct-info-text">${p.info}</div>`:''}<div class="ct-acts">${isS?`<button class="btn btn-s btn-p fc add-btn" data-name="${p.name||''}" data-info="${(p.info||'').replace(/"/g, '&quot;')}"><i class="fa-solid fa-user-plus"></i> 添加</button><button class="btn btn-s fc ignore-btn" data-name="${p.name||''}"><i class="fa-solid fa-eye-slash"></i> 忽略</button>`:`<button class="btn btn-s fc msg-btn" data-uid="${p.worldbookUid||''}"><i class="fa-solid fa-message"></i> 短信</button><button class="btn btn-s btn-p fc inv-btn" data-uid="${p.worldbookUid||''}"><i class="fa-solid fa-paper-plane"></i> 邀请</button>`}</div></div></div></div>`).join('') : '<div class="empty">暂无</div>';
+      $('sec-stranger').innerHTML = renderCt(D.contacts.strangers, true);
+      $('sec-contact').innerHTML = renderCt(D.contacts.contacts, false);
+      $$('.comm-sec .fold').forEach(bindFold);
+      // 陌路人"添加"按钮 - 生成角色卡后加入联络人
+      $$('.add-btn').forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        const name = b.dataset.name;
+        const info = b.dataset.info || '';
+        if (!name) return;
+        generateAndAddContact(name, info, b);
+      });
+      // 陌路人"忽略"按钮 - 从列表中移除
+      $$('.ignore-btn').forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        const name = b.dataset.name;
+        if (!name) return;
+        const i = D.contacts.strangers.findIndex(s => s.name === name);
+        if (i > -1) {
+          D.contacts.strangers.splice(i, 1);
+          saveContactsData();
+          render();
+        }
+      });
+      $$('.msg-btn').forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        const c = D.contacts.contacts.find(x => x.worldbookUid === b.dataset.uid);
+        if (c) openChat(c)
+      });
+      $$('.inv-btn').forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        const c = D.contacts.contacts.find(x => x.worldbookUid === b.dataset.uid);
+        if (c) openInv(c)
+      });
+      const desc = D.maps?.[mapType]?.description || '';
+      $('desc').innerHTML = parseLinks(desc);
+      bindLinks($('desc'));
+      $('mob-desc').innerHTML = parseLinks(desc);
+      bindLinks($('mob-desc'));
+      renderMap();
+    }
+
+    function renderMap() {
+      const map = D.maps?.[mapType];
+      seed = 123456789;
+      inner.querySelectorAll('.item').forEach(e => e.remove());
+      svg.innerHTML = '';
+      nodes = [];
+      lines = [];
+      if (!map?.nodes?.length) return;
+      map.nodes.forEach((n, i) => {
+        const d = dirMap[n.position] || [0, 0],
+          len = Math.hypot(d[0], d[1]) || 1,
+          dist = (n.distant || 1) * 120;
+        nodes.push({
+          id: 'n' + i,
+          name: n.name,
+          type: n.type || 'sub',
+          pos: n.position,
+          distant: n.distant || 1,
+          x: d[0] / len * dist,
+          y: d[1] / len * dist,
+          data: n
+        })
+      });
+      const groups = {};
+      nodes.forEach(n => (groups[n.pos] = groups[n.pos] || []).push(n));
+      for (let p in groups) {
+        const arr = groups[p];
+        if (arr.length <= 1) continue;
+        const d = dirMap[p] || [0, 0],
+          len = Math.hypot(d[0], d[1]) || 1,
+          px = -d[1] / len,
+          py = d[0] / len,
+          mid = (arr.length - 1) / 2;
+        arr.sort((a, b) => a.distant - b.distant).forEach((n, i) => {
+          n.x += px * (i - mid) * 50;
+          n.y += py * (i - mid) * 50
+        })
+      }
+      for (let t = 0; t < 15; t++)
+        for (let i = 0; i < nodes.length; i++)
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i],
+              b = nodes[j],
+              dx = a.x - b.x,
+              dy = a.y - b.y,
+              d = Math.hypot(dx, dy);
+            if (d < 80 && d > 0) {
+              const p = (80 - d) / d * .5;
+              a.x += dx * p;
+              a.y += dy * p;
+              b.x -= dx * p;
+              b.y -= dy * p
+            }
+          }
+      nodes.forEach(n => {
+        const el = document.createElement('div');
+        el.className = `item node-${n.type}`;
+        el.id = n.id;
+        el.textContent = n.type === 'home' ? '🏠 ' + n.name : n.name;
+        el.style.cssText = `left:${n.x+2000}px;top:${n.y+2000}px`;
+        el.onclick = e => {
+          e.stopPropagation();
+          curNode?.id === n.id ? hideInfo() : showInfo(n)
+        };
+        inner.appendChild(el)
+      });
+      for (let g in groups) {
+        const arr = groups[g].sort((a, b) => a.distant - b.distant);
+        for (let i = 0; i < arr.length - 1; i++) lines.push([arr[i], arr[i + 1]])
+      }
+      const anchors = Object.values(groups).map(a => a.sort((x, y) => x.distant - y.distant)[0]).sort((a, b) => Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x));
+      anchors.forEach((a, i) => lines.push([a, anchors[(i + 1) % anchors.length]]));
+      const exists = (a, b) => lines.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+      for (let i = 0, c = 0; c < Math.floor(nodes.length / 5) && i < 200; i++) {
+        const a = nodes[Math.floor(rand() * nodes.length)],
+          b = nodes[Math.floor(rand() * nodes.length)];
+        if (a !== b && !exists(a, b)) {
+          lines.push([a, b]);
+          c++
+        }
+      }
+      drawLines();
+    }
+
+    function drawLines() {
+      svg.innerHTML = '';
+      const rect = mapWrap.getBoundingClientRect();
+      lines.forEach(([a, b]) => {
+        const elA = $(a.id),
+          elB = $(b.id);
+        if (!elA || !elB) return;
+        const rA = elA.getBoundingClientRect(),
+          rB = elB.getBoundingClientRect(),
+          line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', (rA.left + rA.width / 2 - rect.left) / scale - offX / scale);
+        line.setAttribute('y1', (rA.top + rA.height / 2 - rect.top) / scale - offY / scale);
+        line.setAttribute('x2', (rB.left + rB.width / 2 - rect.left) / scale - offX / scale);
+        line.setAttribute('y2', (rB.top + rB.height / 2 - rect.top) / scale - offY / scale);
+        const main = a.type === 'main' && b.type === 'main' || a.type === 'home' || b.type === 'home';
+        line.setAttribute('stroke', main ? '#333' : '#aaa');
+        line.setAttribute('stroke-width', main ? '2' : '1');
+        if (!main) line.setAttribute('stroke-dasharray', '4 3');
+        svg.appendChild(line)
+      })
+    }
+    const updateTf = () => {
+      inner.style.transform = `translate(${offX}px,${offY}px) scale(${scale})`;
+      $('zoom-ind').textContent = Math.round(scale * 100) + '%';
+      requestAnimationFrame(drawLines)
+    };
+    const initPos = () => {
+      offX = -2000 + mapWrap.clientWidth / 2;
+      offY = -2000 + mapWrap.clientHeight / 2;
+      scale = 1;
+      updateTf()
+    };
+
+    function panTo(node, dur = 350) {
+      if (!node || anim) return;
+      const el = $(node.id);
+      if (!el) return;
+      const tX = -(node.x + 2000) * scale + mapWrap.clientWidth / 2,
+        tY = -(node.y + 2000) * scale + mapWrap.clientHeight * .25,
+        sX = offX,
+        sY = offY,
+        st = performance.now();
+      anim = true;
+      (function step(now) {
+        const p = Math.min((now - st) / dur, 1),
+          e = 1 - Math.pow(1 - p, 3);
+        offX = sX + (tX - sX) * e;
+        offY = sY + (tY - sY) * e;
+        updateTf();
+        p < 1 ? requestAnimationFrame(step) : anim = false
+      })(st)
+    }
+
+    function showInfo(n) {
+      if (!n?.data) return;
+      curNode = n;
+      inner.querySelectorAll('.item').forEach(e => e.classList.remove('hl'));
+      $(n.id)?.classList.add('hl');
+      mapType === 'outdoor' ? ($('btn-goto').classList.add('show'), $('goto-t').textContent = `前往 ${n.name}`) : $('btn-goto').classList.remove('show');
+      if (isMob()) {
+        $('mob-info-t').textContent = n.name;
+        $('mob-info-c').textContent = n.data.info || '暂无信息...';
+        popup.classList.add('show-i');
+        if (!popup.classList.contains('act')) openPop(1)
+      } else {
+        $('info-t').textContent = n.name;
+        $('info-c').textContent = n.data.info || '暂无信息...';
+        $('tip').classList.add('show-i')
+      }
+    }
+    const hideInfo = () => {
+      curNode = null;
+      inner.querySelectorAll('.item').forEach(e => e.classList.remove('hl'));
+      $('btn-goto').classList.remove('show');
+      $('tip').classList.remove('show-i');
+      popup.classList.remove('show-i')
+    };
+    $('info-bk').onclick = hideInfo;
+    $('mob-info-bk').onclick = () => popup.classList.remove('show-i');
+    let sx, sy, lastDist = 0;
+    mapWrap.onmousedown = e => {
+      if (anim || e.target.closest('.map-act,.map-lbl')) return;
+      if (!e.target.classList.contains('item')) hideInfo();
+      drag = true;
+      sx = e.clientX;
+      sy = e.clientY;
+      mapWrap.style.cursor = 'grabbing'
+    };
+    mapWrap.onmousemove = e => {
+      if (!drag) return;
+      offX += e.clientX - sx;
+      offY += e.clientY - sy;
+      sx = e.clientX;
+      sy = e.clientY;
+      updateTf()
+    };
+    mapWrap.onmouseup = mapWrap.onmouseleave = () => {
+      drag = false;
+      mapWrap.style.cursor = 'grab'
+    };
+    mapWrap.onwheel = e => {
+      if (anim) return;
+      e.preventDefault();
+      const ns = Math.max(.3, Math.min(3, scale + (e.deltaY > 0 ? -.1 : .1))),
+        rect = mapWrap.getBoundingClientRect(),
+        mx = e.clientX - rect.left,
+        my = e.clientY - rect.top,
+        r = ns / scale;
+      offX = mx - (mx - offX) * r;
+      offY = my - (my - offY) * r;
+      scale = ns;
+      updateTf()
+    };
+    mapWrap.ontouchstart = e => {
+      if (anim || e.target.closest('.map-act,.map-lbl')) return;
+      const itemEl = e.target.closest('.item');
+      if (itemEl) {
+        // 记录触摸开始位置，用于判断是点击还是拖动
+        itemEl._touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
+        return;
+      }
+      hideInfo();
+      if (e.touches.length === 1) {
+        drag = true;
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY
+      } else if (e.touches.length === 2) {
+        drag = false;
+        lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+      }
+    };
+    mapWrap.ontouchmove = e => {
+      // 如果在item上移动超过阈值，取消点击
+      const itemEl = e.target.closest('.item');
+      if (itemEl && itemEl._touchStart) {
+        const dx = e.touches[0].clientX - itemEl._touchStart.x;
+        const dy = e.touches[0].clientY - itemEl._touchStart.y;
+        if (Math.hypot(dx, dy) > 10) {
+          delete itemEl._touchStart;
+          drag = true;
+          sx = e.touches[0].clientX;
+          sy = e.touches[0].clientY;
+        }
+        return;
+      }
+      if (e.touches.length === 1 && drag) {
+        offX += e.touches[0].clientX - sx;
+        offY += e.touches[0].clientY - sy;
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY;
+        updateTf()
+      } else if (e.touches.length === 2) {
+        const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        scale = Math.max(.3, Math.min(3, scale + (d - lastDist) * .005));
+        lastDist = d;
+        updateTf()
+      }
+    };
+    mapWrap.ontouchend = e => {
+      // 处理item点击
+      const itemEl = e.target.closest('.item');
+      if (itemEl && itemEl._touchStart) {
+        const elapsed = Date.now() - itemEl._touchStart.time;
+        delete itemEl._touchStart;
+        // 短触摸视为点击
+        if (elapsed < 300) {
+          const n = nodes.find(n => n.id === itemEl.id);
+          if (n) {
+            e.preventDefault();
+            curNode?.id === n.id ? hideInfo() : showInfo(n);
+          }
+        }
+      }
+      drag = false;
+    };
+    $$('.nav-i').forEach(i => i.onclick = () => {
+      $$('.nav-i').forEach(n => n.classList.remove('act'));
+      $$('.page').forEach(p => p.classList.remove('act'));
+      i.classList.add('act');
+      $(`page-${i.dataset.p}`).classList.add('act');
+      $('map-tog').classList.toggle('show', i.dataset.p === 'map');
+      if (isMob()) i.dataset.p === 'map' ? openPop(1) : popup.classList.remove('act');
+      if (i.dataset.p === 'map') setTimeout(() => {
+        initPos();
+        drawLines()
+      }, 50)
+    });
+    $$('.comm-tab').forEach(t => t.onclick = () => {
+      $$('.comm-tab').forEach(x => x.classList.remove('act'));
+      $$('.comm-sec').forEach(s => s.classList.remove('act'));
+      t.classList.add('act');
+      $(`sec-${t.dataset.t}`).classList.add('act')
+    });
+    $('btn-tog').onclick = () => {
+      mapType = mapType === 'outdoor' ? 'indoor' : 'outdoor';
+      $('btn-tog').innerHTML = mapType === 'outdoor' ? '<i class="fa-solid fa-expand"></i>' : '<i class="fa-solid fa-compress"></i>';
+      $('btn-tog').classList.toggle('in', mapType === 'indoor');
+      $('map-lbl-t').textContent = D.maps[mapType].name;
+      render();
+      hideInfo();
+      initPos()
+    };
+    $('btn-goto').onclick = e => {
+      e.stopPropagation();
+      if (curNode) {
+        $('goto-d').textContent = `目的地：${curNode.name}`;
+        $('goto-task').value = '';
+        openM('m-goto')
+      }
+    };
+    $('goto-ok').onclick = () => {
+      if (!curNode) return;
+      
+      const btn = $('goto-ok');
+      const playerAction = $('goto-task').value || '';
+      
+      // 获取当前所在位置（用于计算离开后的变化）
+      const prevLocation = curLocation || { name: '未知地点', info: '' };
+      
+      // 目标地点类型判断（根据节点属性）
+      let targetType = 'sub';
+      if (curNode.type === 'main') targetType = 'main';
+      else if (curNode.type === 'home') targetType = 'home';
+      
+      // 生成请求ID
+      const requestId = 'scene_' + Date.now();
+      
+      // 保存状态
+      pendingSceneSwitch = {
+        requestId,
+        targetNode: curNode,
+        prevLocationName: prevLocation.name
+      };
+      
+      // 更新按钮状态
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
+      
+      // 发送场景切换请求
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SCENE_SWITCH',
+        requestId,
+        prevLocationName: prevLocation.name,
+        prevLocationInfo: prevLocation.info || prevLocation.description || '',
+        targetLocationName: curNode.name,
+        targetLocationType: targetType,
+        targetLocationInfo: curNode.info || curNode.description || '',
+        playerAction
+      }, '*');
+    };
+    $('btn-deduce').onclick = () => openM('m-world-gen');
+    $('btn-simulate').onclick = () => openM('m-world-sim');
+    
+    // ================== 世界推演功能 ==================
+    let pendingWorldSim = null;
+    
+    $('world-sim-ok').onclick = () => {
+      // 检查是否有世界数据
+      if (!D.meta && !D.timeline && !D.maps?.outdoor) {
+        alert('请先生成世界数据，再进行推演');
+        return;
+      }
+      
+      const btn = $('world-sim-ok');
+      const statusEl = $('world-sim-status');
+      
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 推演中...';
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#4a9';
+      statusEl.textContent = '正在分析玩家行为并推演世界变化...';
+      
+      // 构建当前数据
+      const currentData = JSON.stringify({
+        meta: D.meta,
+        timeline: D.timeline,
+        world: D.world,
+        maps: D.maps
+      }, null, 2);
+      
+      const requestId = 'sim_' + Date.now();
+      pendingWorldSim = { requestId };
+      
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SIMULATE_WORLD',
+        requestId,
+        currentData
+      }, '*');
+    };
+    
+    function handleSimulateWorldResult(data) {
+      if (!pendingWorldSim || pendingWorldSim.requestId !== data.requestId) return;
+      
+      pendingWorldSim = null;
+      
+      const btn = $('world-sim-ok');
+      const statusEl = $('world-sim-status');
+      
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-rotate"></i> 开始推演';
+      
+      if (data.error) {
+        statusEl.style.color = '#c44';
+        statusEl.textContent = '推演失败: ' + data.error;
+        return;
+      }
+      
+      if (data.success && data.simData) {
+        statusEl.style.color = '#4a9';
+        statusEl.textContent = '推演成功！正在应用数据...';
+        
+        // 应用推演结果
+        const sd = data.simData;
+        
+        // 更新 D 对象
+        if (sd.meta) D.meta = sd.meta;
+        if (sd.timeline) D.timeline = sd.timeline;
+        if (sd.world) D.world = sd.world;
+        if (sd.maps?.outdoor) D.maps.outdoor = sd.maps.outdoor;
+        
+        // Stage 自增（后端已处理，前端同步）
+        D.stage = (D.stage || 0) + 1;
+        
+        // 保存数据
+        saveAllData();
+        render();
+        
+        // 关闭弹窗
+        setTimeout(() => {
+          closeM('m-world-sim');
+          statusEl.style.display = 'none';
+          alert(`世界推演完成！Stage 已推进到 ${D.stage}`);
+        }, 500);
+        
+        console.log('[Story Outline] World simulated and applied:', sd);
+      }
+    }
+    
+    // ================== 设置功能 ==================
+    const dataKeys = [
+      ['meta', '大纲', '核心真相、结局逻辑等元数据', () => D.meta, v => D.meta = v],
+      ['timeline', '时间线', '世界从当前走向终局的阶段', () => D.timeline, v => D.timeline = v],
+      ['world', '世界资讯', '世界新闻、主线进度等信息', () => D.world, v => D.world = v],
+      ['outdoor', '大地图', '室外区域的地点和路线', () => D.maps.outdoor, v => D.maps.outdoor = v],
+      ['indoor', '局部地图', '室内或局部区域的地点和路线', () => D.maps.indoor, v => D.maps.indoor = v],
+      ['sceneSetup', '区域剧情', '当前区域的 Side Story 和表里层结构', () => D.sceneSetup, v => D.sceneSetup = v],
+      ['strangers', '陌路人', '已遇见但未建立联系的角色', () => D.contacts.strangers, v => D.contacts.strangers = v],
+      ['contacts', '联络人', '已添加的联系人', () => D.contacts.contacts, v => D.contacts.contacts = v]
+    ];
+    let globalSettings = {
+      apiUrl: '',
+      apiKey: '',
+      model: ''
+    };
+    let dataChecked = {
+      meta: false,
+      timeline: false,
+      world: false,
+      outdoor: false,
+      indoor: false,
+      sceneSetup: false,
+      strangers: false,
+      contacts: false
+    };
+    let editingKey = null;
+    let commSettings = {
+      historyCount: 50,
+      npcPosition: 0,
+      npcOrder: 100
+    };
+    // 从父窗口请求设置
+    function requestSettings() {
+      console.log('[Story Outline Frame] Requesting settings from parent...');
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'GET_SETTINGS'
+      }, '*');
+    }
+    // 监听父窗口消息
+    window.addEventListener('message', e => {
+      if (e.data?.source !== 'LittleWhiteBox') return;
+      console.log('[Story Outline Frame] Received message:', e.data.type);
+      switch (e.data.type) {
+        case 'LOAD_SETTINGS':
+          if (e.data.globalSettings) {
+            globalSettings = e.data.globalSettings;
+            // 如果设置弹窗已打开，更新UI
+            if ($('m-settings').classList.contains('act')) {
+              $('set-api-url').value = globalSettings.apiUrl || '';
+              $('set-api-key').value = globalSettings.apiKey || '';
+              $('set-model').value = globalSettings.model || '';
+            }
+          }
+          // 加载 stage 和 deviationScore
+          if (e.data.stage !== undefined) {
+            D.stage = e.data.stage;
+            if ($('m-settings').classList.contains('act')) {
+              $('set-stage').value = D.stage;
+            }
+          }
+          if (e.data.deviationScore !== undefined) {
+            D.deviationScore = e.data.deviationScore;
+            if ($('m-settings').classList.contains('act')) {
+              $('set-deviation').value = D.deviationScore;
+            }
+          }
+          if (e.data.commSettings) {
+            commSettings = {
+              historyCount: typeof e.data.commSettings.historyCount === 'number' ? e.data.commSettings.historyCount : 50,
+              npcPosition: typeof e.data.commSettings.npcPosition === 'number' ? e.data.commSettings.npcPosition : 0,
+              npcOrder: typeof e.data.commSettings.npcOrder === 'number' ? e.data.commSettings.npcOrder : 100
+            };
+            if ($('m-settings').classList.contains('act')) {
+              $('set-history-count').value = commSettings.historyCount;
+              $('set-npc-position').value = commSettings.npcPosition;
+              $('set-npc-order').value = commSettings.npcOrder;
+            }
+          }
+          if (e.data.dataChecked) {
+            dataChecked = e.data.dataChecked;
+            // 如果设置弹窗已打开，更新勾选状态
+            if ($('m-settings').classList.contains('act')) {
+              renderDataList();
+            }
+          }
+          if (e.data.outlineData) {
+            if (e.data.outlineData.meta) D.meta = e.data.outlineData.meta;
+            if (e.data.outlineData.timeline) D.timeline = e.data.outlineData.timeline;
+            if (e.data.outlineData.world) D.world = e.data.outlineData.world;
+            if (e.data.outlineData.outdoor) D.maps.outdoor = e.data.outlineData.outdoor;
+            if (e.data.outlineData.indoor) D.maps.indoor = e.data.outlineData.indoor;
+            if (e.data.outlineData.sceneSetup) D.sceneSetup = e.data.outlineData.sceneSetup;
+            if (e.data.outlineData.strangers) D.contacts.strangers = e.data.outlineData.strangers;
+            if (e.data.outlineData.contacts) D.contacts.contacts = e.data.outlineData.contacts;
+            render();
+          }
+          break;
+        case 'FETCH_MODELS_RESULT':
+          renderModelList(e.data.models, e.data.error);
+          break;
+        case 'TEST_CONN_RESULT':
+          showTestResult(e.data.success, e.data.message);
+          break;
+        case 'CHECK_WORLDBOOK_UID_RESULT':
+          handleCheckUidResult(e.data);
+          break;
+        case 'SMS_RESULT':
+          handleSmsResult(e.data);
+          break;
+        case 'SMS_STREAM':
+          handleSmsStream(e.data);
+          break;
+        case 'LOAD_SMS_HISTORY_RESULT':
+          handleLoadSmsHistory(e.data);
+          break;
+        case 'COMPRESS_SMS_RESULT':
+          handleCompressResult(e.data);
+          break;
+        case 'CHECK_STRANGER_WORLDBOOK_RESULT':
+          handleCheckStrangerWorldbookResult(e.data);
+          break;
+        case 'GENERATE_NPC_RESULT':
+          handleGenerateNpcResult(e.data);
+          break;
+        case 'EXTRACT_STRANGERS_RESULT':
+          handleExtractStrangersResult(e.data);
+          break;
+        case 'GENERATE_WORLD_RESULT':
+          handleGenerateWorldResult(e.data);
+          break;
+        case 'SIMULATE_WORLD_RESULT':
+          handleSimulateWorldResult(e.data);
+          break;
+        case 'SCENE_SWITCH_RESULT':
+          handleSceneSwitchResult(e.data);
+          break;
+        case 'SEND_INVITE_RESULT':
+          handleSendInviteResult(e.data);
+          break;
+      }
+    });
+
+    function renderDataList() {
+      $('data-list').innerHTML = dataKeys.map(([k, t, desc]) => {
+        const checked = dataChecked[k] ? 'sel' : '';
+        return `<div class="data-item ${checked}" data-k="${k}">
+            <div class="data-ck"><i class="fa-solid fa-check"></i></div>
+            <div class="data-info"><div class="data-nm">${t}</div><div class="data-desc">${desc}</div></div>
+            <button class="data-edit" data-k="${k}" title="编辑"><i class="fa-solid fa-pen"></i></button>
+        </div>`;
+      }).join('');
+      // 绑定勾选事件
+      $$('#data-list .data-item').forEach(item => {
+        item.onclick = e => {
+          if (e.target.closest('.data-edit')) return;
+          const k = item.dataset.k;
+          dataChecked[k] = !dataChecked[k];
+          item.classList.toggle('sel', dataChecked[k]);
+        };
+      });
+      // 绑定编辑按钮
+      $$('#data-list .data-edit').forEach(btn => {
+        btn.onclick = e => {
+          e.stopPropagation();
+          openDataEdit(btn.dataset.k);
+        };
+      });
+    }
+
+    function openDataEdit(key) {
+      const item = dataKeys.find(([k]) => k === key);
+      if (!item) return;
+      editingKey = key;
+      editingJsonKey = null;
+      $('data-edit-title').textContent = `编辑 - ${item[1]}`;
+      $('data-edit-ta').value = JSON.stringify(item[3](), null, 2);
+      $('data-edit-err').classList.remove('vis');
+      $('data-edit-err').textContent = '';
+      openM('m-data-edit');
+    }
+    $('data-edit-save').onclick = () => {
+      // 处理JSON模板编辑
+      if (editingJsonKey) {
+        promptTemplates.json[editingJsonKey] = $('data-edit-ta').value;
+        savePromptTemplates();
+        closeM('m-data-edit');
+        editingJsonKey = null;
+        return;
+      }
+      // 处理数据编辑
+      if (!editingKey) return;
+      const item = dataKeys.find(([k]) => k === editingKey);
+      if (!item) return;
+      try {
+        const v = JSON.parse($('data-edit-ta').value);
+        item[4](v);
+        render();
+        // 保存修改后的数据到聊天元数据
+        saveAllData();
+        closeM('m-data-edit');
+        editingKey = null;
+      } catch (e) {
+        $('data-edit-err').textContent = `JSON错误: ${e.message}`;
+        $('data-edit-err').classList.add('vis');
+      }
+    };
+
+    function renderModelList(models, error) {
+      resetFetchBtn();
+      const sel = $('set-model-list');
+      if (error) {
+        sel.style.display = 'none';
+        showTestResultOnly(false, '获取模型失败: ' + error);
+        return;
+      }
+      if (!models?.length) {
+        sel.style.display = 'none';
+        showTestResultOnly(false, '未找到可用模型');
+        return;
+      }
+      sel.innerHTML = '<option value="">-- 选择模型 --</option>' +
+        models.map(m => `<option value="${m}">${m}</option>`).join('');
+      sel.style.display = 'block';
+      sel.onchange = () => {
+        if (sel.value) $('set-model').value = sel.value;
+      };
+      showTestResultOnly(true, `找到 ${models.length} 个模型`);
+    }
+    // 只显示结果，不重置按钮
+    function showTestResultOnly(success, message) {
+      const res = $('test-res');
+      res.textContent = message;
+      res.className = 'set-test-res ' + (success ? 'ok' : 'err');
+    }
+
+    function showTestResult(success, message) {
+      resetTestBtn();
+      showTestResultOnly(success, message);
+    }
+    $('btn-settings').onclick = () => {
+      // 请求最新设置
+      requestSettings();
+      // 填充当前设置
+      $('set-api-url').value = globalSettings.apiUrl || '';
+      $('set-api-key').value = globalSettings.apiKey || '';
+      $('set-model').value = globalSettings.model || '';
+      $('set-model-list').style.display = 'none';
+      $('test-res').className = 'set-test-res';
+      // 填充 stage 和 deviationScore
+      $('set-stage').value = D.stage || 0;
+      $('set-deviation').value = D.deviationScore || 0;
+      // 填充通讯设置
+      $('set-history-count').value = commSettings.historyCount || 50;
+      // 填充 NPC 世界书条目设置
+      $('set-npc-position').value = commSettings.npcPosition || 0;
+      $('set-npc-order').value = commSettings.npcOrder || 100;
+      renderDataList();
+      // 加载提示词模板
+      loadPromptTemplates();
+      openM('m-settings');
+    };
+    $('btn-fetch-models').onclick = () => {
+      const url = $('set-api-url').value.trim();
+      const key = $('set-api-key').value.trim();
+      $('btn-fetch-models').disabled = true;
+      $('btn-fetch-models').textContent = '加载中...';
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'FETCH_MODELS',
+        apiUrl: url,
+        apiKey: key
+      }, '*');
+    };
+
+    function resetFetchBtn() {
+      $('btn-fetch-models').disabled = false;
+      $('btn-fetch-models').textContent = '获取';
+    }
+    $('btn-test-conn').onclick = () => {
+      const url = $('set-api-url').value.trim();
+      const key = $('set-api-key').value.trim();
+      const model = $('set-model').value.trim();
+      $('test-res').className = 'set-test-res';
+      $('test-res').textContent = '';
+      $('btn-test-conn').disabled = true;
+      $('btn-test-conn').textContent = '测试中...';
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'TEST_CONNECTION',
+        apiUrl: url,
+        apiKey: key,
+        model: model
+      }, '*');
+    };
+
+    function resetTestBtn() {
+      $('btn-test-conn').disabled = false;
+      $('btn-test-conn').textContent = '测试连接';
+    }
+
+    // ================== 高级设置 - 提示词模板 ==================
+    const defaultPromptTemplates = {
+      sms: {
+        u1: '现在是短信模拟场景。\n\n${_outline}${_outline ? \'\\n\\n\' : \'\'}${worldInfo}\n\n${history(historyCount)}\n\n以上是设定和聊天历史，遵守人设，忽略规则类信息和非${contactName}经历的内容。以${contactName}身份回复${userName}的短信（仅输出回复内容）。字数精简，10～30字左右。${_character ? `\\n\\n${_character}` : \'\'}',
+        a1: '明白，我只输出${contactName}的回复短信，请提供已有短信历史。',
+        u2: '${smsHistoryContent}\n\n<${userName}发来的新短信>\n${userMessage}',
+        a2: '了解，开始以${contactName}进行回复:'
+      },
+      summary: {
+        u1: '你是剧情记录员。根据新短信聊天内容提取新增剧情要素。\n\n任务：只根据新对话输出增量内容，不重复已有总结。\n事件筛选：只记录有信息量的完整事件。',
+        a1: '明白，我只输出新增内容，请提供已有总结和新对话内容。',
+        u2: '${existingSummaryContent}\n\n<新对话内容>\n${conversationText}\n</新对话内容>\n\n输出要求：\n- 只输出一个合法JSON对象\n- 内部文本使用中文单引号\n\n格式：{"summary": "角色A向角色B打招呼，并表示会守护在旁边"}',
+        a2: '了解，开始生成JSON:'
+      },
+      invite: {
+        u1: '你是短信模拟器。${userName}正在邀请${contactName}前往「${targetLocation}」。\n\n${_outline}${_outline ? \'\\n\\n\' : \'\'}${worldInfo}\n\n${history(historyCount)}${_character ? `\\n\\n${_character}` : \'\'}\n\n根据${contactName}的人设、处境、与${userName}的关系，判断是否答应。\n\n**判断参考**：亲密度、当前事务、地点危险性、角色性格\n\n输出JSON："cot"(思维链)、"invite"(true/false)、"reply"(10-50字回复)\n\n模板：${INVITE_JSON_TEMPLATE}',
+        a1: '明白，我将分析${contactName}是否答应并以角色语气回复。请提供短信历史。',
+        u2: '${smsHistoryContent}\n\n<${userName}发来的新短信>\n我邀请你前往「${targetLocation}」，你能来吗？',
+        a2: '了解，开始生成JSON:'
+      },
+      npc: {
+        u1: '你是TRPG角色生成器。将陌生人【${strangerName} - ${strangerInfo}】扩充为完整NPC。基于世界观和剧情大纲，输出严格JSON。',
+        a1: '明白。请提供上下文，我将严格按JSON输出，不含多余文本。',
+        u2: '${worldInfo}\n\n${history(historyCount)}\n\n剧情秘密大纲（*从这里提取线索赋予角色秘密*）：\n${_outline}\n\n需要生成：【${strangerName} - ${strangerInfo}】\n\n输出要求：\n1. 合法JSON\n2. 内部用单引号，禁用双引号\n3. aliases须含简称或绰号\n\n模板：${NPC_JSON_TEMPLATE}',
+        a2: '了解，开始生成JSON:'
+      },
+      strangers: {
+        s: '你是TRPG数据整理助手。从剧情文本中提取玩家遇到的陌生人/NPC，整理为JSON数组。',
+        u1: '请准备提取NPC列表。我将提供世界观和玩家经历。',
+        a1: '明白。请提供【世界观】和【剧情经历】，我将提取角色并以JSON数组输出。',
+        u2: '### 上下文\n\n**1. 世界观：**\n${worldInfo}\n\n**2. 玩家经历：**\n${history(historyCount)}${_outline ? `\\n\\n**剧情大纲：**\\n${_outline}` : \'\'}${_existingNames}\n\n### 输出要求\n\n1. JSON数组\n2. 只提取有具体称呼的角色\n3. 每个角色只需name/location/info\n4. 无新角色返回 []\n\n模板：${STRANGER_JSON_TEMPLATE}'
+      },
+      worldgen: {
+        u1: '你是TRPG动态叙事引擎。根据【题材风格】构建逻辑自洽、曲折吸引人的初始剧情状态。\n\n核心原则：\n1. **自适应基调**：分析题材风格(恐怖→不可知,日常→羁绊,脑洞→反直觉)。严禁轻松题材强制引入灾难。\n2. **真相结构**（L1-L7）：表象→痕迹→机制→节点→核心→驱动→后果\n3. **时间轴**：4-7阶段，演变符合题材\n4. **结局**：Default/Intervention/Resolution\n5. **世界**：News至少3条，Maps至少7个地点\n6. **历史参考**：参考玩家经历构建世界\n\n输出：仅纯净合法JSON，禁止解释文字或Markdown。',
+        a1: '明白。我将分析题材风格，遵循L1→L7模型构建JSON。请提供设定。',
+        u2: '【世界观与要求】：\n${worldInfo}\n\n【玩家经历参考】：\n${history(historyCount)}\n\n【玩家要求】：\n${playerRequests || \'无特殊要求\'}\n\n【JSON模板】：\n${WORLD_GEN_JSON_TEMPLATE}',
+        a2: '严格生成JSON，不擅自修改。JSON生成开始:'
+      },
+      worldsim: {
+        u1: '你是世界演化引擎。推动时间流逝，根据【玩家历史行为】和【既定命运】计算世界下一状态。\n\n演化逻辑：\n1. **历史回顾**：分析玩家行为影响（摧毁据点→变废墟，忽略威胁→恶化）\n2. **真相迭代**：L5-L7保持不变；L1-L2大幅更新；L3-L4适度更新\n3. **地图重构**：Main保留原名更新info；约30%的Sub结构性变化\n4. **时间推进**：Stage推进，生成全新News\n\n输出：完整JSON，结构与模板一致，禁止解释文字。',
+        a1: '明白。我将读取当前状态和玩家历史，推演变化。保留核心，更新30%次级节点，刷新新闻和浅层线索。请提供数据。',
+        u2: '【世界观设定】：\n${worldInfo}\n\n【玩家历史】：\n${history(historyCount)}\n\n【当前世界状态】：\n${currentWorldData || \'{}\'}\n\n【JSON模板】：\n${WORLD_SIM_JSON_TEMPLATE}',
+        a2: '演化计算完成。JSON output start:'
+      },
+      scene: {
+        u1: '你是TRPG场景管理器。处理玩家移动请求，结算上一地点后果，构建新地点场景。\n\n处理逻辑：\n1. **历史结算**：分析玩家最后行为，计算偏差值(0-4无关/5-10干扰/11-20转折)，描述离开后地点变化\n2. **故事生成**：用L${lLevel}级元素生成Side Story（表层钩子+里层真相）\n3. **局部地图**：Description全景式描写，节点用[[名]]包裹；生成3-6个节点和0-3个NPC\n\n输出：仅符合模板的JSON，禁止解释文字。',
+        a1: '明白。我将结算偏差值，基于L${lLevel}深度生成Side Story和局部地图JSON。请发送上下文。',
+        u2: '【上一地点】：\n${_prevLocation}\n\n【世界设定】：\n${worldInfo}\n\n【剧情大纲】：\n${_outline || \'无大纲\'}\n\n【当前时间段】：\n${_timeline}\n\n【历史记录】：\n${history(historyCount)}\n\n【玩家行动意图】：\n${playerAction || \'无特定意图\'}\n\n【目标地点】：\n${_targetLocation}\n\n【JSON模板】：\n${SCENE_SWITCH_JSON_TEMPLATE}',
+        a2: 'OK, JSON generate start:'
+      },
+      json: {
+        invite: '{ "cot": "思维链分析...", "invite": true, "reply": "回复短信内容" }',
+        npc: '{\n  "name": "角色全名", "aliases": ["别名1", "别名2"],\n  "intro": "一句话外貌与职业", "background": "角色生平",\n  "persona": { "keywords": ["性格1","性格2"], "speaking_style": "说话风格、口癖", "motivation": "核心驱动力" },\n  "game_data": { "stance": "阵营态度", "secret": "掌握的秘密" }\n}',
+        stranger: '[{ "name": "角色名", "location": "当前地点", "info": "一句话简介" }]',
+        worldgen: '{\n  "meta": {\n    "truth": { "overview": "一句话核心真相",\n      "onion_layers": {\n        "L1_Surface": [{ "desc": "表象", "logic": "实际情况" }],\n        "L2_Traces": [{ "desc": "物证", "logic": "揭示信息" }],\n        "L3_Mechanism": [{ "desc": "机制", "logic": "指向核心" }],\n        "L4_Nodes": [{ "desc": "节点", "logic": "作用" }],\n        "L5_Core": { "desc": "核心源头", "logic": "能力" },\n        "L6_Drive": { "desc": "驱动力", "logic": "为何产生" },\n        "L7_Consequence": { "desc": "无人干涉结局", "logic": "后果" }\n      }\n    },\n    "outcomes": { "default_end": "顺其自然", "intervention_end": "部分介入", "resolution_end": "完美解决" }\n  },\n  "timeline": [{ "stage": 0, "state": "状态", "event": "事件" }],\n  "world": { "news": [{ "title": "标题", "time": "时间", "content": "内容" }] },\n  "maps": { "outdoor": { "description": "全景描写含[[节点名]]", "nodes": [{ "name": "地点", "position": "方位", "distant": 1, "type": "main/sub/home", "info": "特征" }] } }\n}',
+        worldsim: '{\n  "meta": { "truth": { "overview": "保持或微调",\n    "onion_layers": {\n      "L1_Surface": [{ "desc": "更新流言", "logic": "..." }], "L2_Traces": [{ "desc": "新线索", "logic": "..." }],\n      "L3_Mechanism": [{ "desc": "机制变化", "logic": "..." }], "L4_Nodes": [{ "desc": "新动向", "logic": "..." }],\n      "L5_Core": { "desc": "保持", "logic": "保持" }, "L6_Drive": { "desc": "保持", "logic": "保持" }, "L7_Consequence": { "desc": "保持", "logic": "保持" }\n    } },\n    "outcomes": { "default_end": "保持", "intervention_end": "微调", "resolution_end": "保持" }\n  },\n  "timeline": [{ "stage": "N+1", "state": "新状态", "event": "新事件" }],\n  "world": { "news": [{ "title": "新标题", "time": "...", "content": "..." }] },\n  "maps": { "outdoor": { "description": "更新描写", "nodes": [] } }\n}',
+        scene: '{\n  "review": { "deviation": { "cot_analysis": "分析玩家行为影响", "score_delta": 0, "prev_loc_update": "地点变化描写" } },\n  "scene_setup": {\n    "side_story": { "story": "本场景剧情", "surface": "表层钩子", "inner": "里层真相" },\n    "local_map": { "name": "地点名", "description": "全景描写含[[节点]]", "nodes": [{ "name": "节点", "position": "方位", "distant": 1, "type": "main/sub/interact", "info": "描写" }] },\n    "strangers": [{ "name": "NPC名", "location": "节点", "info": "外貌行为" }]\n  }\n}'
+      }
+    };
+    let promptTemplates = JSON.parse(JSON.stringify(defaultPromptTemplates));
+
+    // 提示词模板配置 [key, 标题, 描述, 结构说明]
+    const promptKeys = [
+      ['sms', '短信回复', '模拟NPC回复短信', 'u1 a1 u2 a2'],
+      ['summary', '总结压缩', '压缩短信历史为摘要', 'u1 a1 u2 a2'],
+      ['invite', '邀请判断', '判断NPC是否接受邀请', 'u1 a1 u2 a2'],
+      ['npc', 'NPC生成', '将陌路人扩展为完整NPC', 'u1 a1 u2 a2'],
+      ['strangers', '陌路人提取', '从聊天记录提取遇到的角色', 's u1 a1 u2'],
+      ['worldgen', '世界生成', '生成初始世界状态和大纲', 'u1 a1 u2 a2'],
+      ['worldsim', '世界推演', '推演世界状态变化', 'u1 a1 u2 a2'],
+      ['scene', '场景切换', '生成新地点的场景和局部地图', 'u1 a1 u2 a2']
+    ];
+    const jsonKeys = [
+      ['invite', '邀请回复', '邀请功能的JSON输出格式'],
+      ['npc', 'NPC生成', 'NPC角色卡的JSON输出格式'],
+      ['stranger', '陌路人提取', '陌路人列表的JSON输出格式'],
+      ['worldgen', '世界生成', '世界状态的JSON输出格式'],
+      ['worldsim', '世界推演', '推演结果的JSON输出格式'],
+      ['scene', '场景切换', '场景切换的JSON输出格式']
+    ];
+    let editingPromptKey = null;
+    let editingJsonKey = null;
+
+    // 高级设置折叠
+    $('adv-toggle').onclick = () => {
+      const content = $('adv-content');
+      const arrow = $('adv-arrow');
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        arrow.classList.add('open');
+        renderPromptList();
+        renderJsonList();
+      } else {
+        content.style.display = 'none';
+        arrow.classList.remove('open');
+      }
+    };
+
+    // 渲染提示词模板列表（复用 data-item 样式）
+    function renderPromptList() {
+      $('prompt-list').innerHTML = promptKeys.map(([k, t, desc, struct]) => {
+        return `<div class="data-item" data-k="${k}">
+          <div class="data-ck" style="visibility:hidden"></div>
+          <div class="data-info"><div class="data-nm">${t}</div><div class="data-desc">${desc}（${struct}）</div></div>
+          <button class="data-edit" data-k="${k}" title="编辑"><i class="fa-solid fa-pen"></i></button>
+        </div>`;
+      }).join('');
+      // 绑定编辑按钮
+      $$('#prompt-list .data-edit').forEach(btn => {
+        btn.onclick = e => {
+          e.stopPropagation();
+          openPromptEdit(btn.dataset.k);
+        };
+      });
+    }
+
+    // 渲染JSON模板列表
+    function renderJsonList() {
+      $('json-list').innerHTML = jsonKeys.map(([k, t, desc]) => {
+        return `<div class="data-item" data-k="${k}">
+          <div class="data-ck" style="visibility:hidden"></div>
+          <div class="data-info"><div class="data-nm">${t}</div><div class="data-desc">${desc}</div></div>
+          <button class="data-edit json-edit" data-k="${k}" title="编辑"><i class="fa-solid fa-pen"></i></button>
+        </div>`;
+      }).join('');
+      // 绑定编辑按钮
+      $$('#json-list .data-edit').forEach(btn => {
+        btn.onclick = e => {
+          e.stopPropagation();
+          openJsonEdit(btn.dataset.k);
+        };
+      });
+    }
+
+    // 提示词字段显示名映射
+    const promptFieldLabels = {
+      s: 'System（系统提示）',
+      u1: 'User 1（用户第一轮）',
+      a1: 'Assistant 1（助手确认）',
+      u2: 'User 2（用户第二轮）',
+      a2: 'Assistant 2（助手开始）'
+    };
+
+    // 打开提示词模板编辑（使用专用模态框）
+    function openPromptEdit(key) {
+      const item = promptKeys.find(([k]) => k === key);
+      if (!item) return;
+      editingPromptKey = key;
+      const [, title, desc, struct] = item;
+      const template = promptTemplates[key] || {};
+      
+      // 根据 struct 解析需要显示的字段
+      const fields = struct.split(' ').filter(f => f);
+      
+      // 生成编辑字段 HTML
+      let fieldsHtml = `<div class="fs12 c2" style="margin-bottom:12px">${desc}</div>`;
+      fields.forEach(field => {
+        const label = promptFieldLabels[field] || field.toUpperCase();
+        const value = template[field] || '';
+        fieldsHtml += `
+          <div class="form-g" style="margin-bottom:12px">
+            <label class="form-l fw5">${label}</label>
+            <textarea class="form-ta prompt-field-ta" data-field="${field}" style="min-height:100px;font-size:12px;line-height:1.5">${escapeHtml(value)}</textarea>
+          </div>`;
+      });
+      
+      $('prompt-edit-title').textContent = `编辑提示词 - ${title}`;
+      $('prompt-edit-fields').innerHTML = fieldsHtml;
+      $('prompt-edit-err').classList.remove('vis');
+      $('prompt-edit-err').textContent = '';
+      openM('m-prompt-edit');
+    }
+
+    // 保存提示词模板
+    $('prompt-edit-save').onclick = () => {
+      if (!editingPromptKey) return;
+      const newTemplate = {};
+      $$('#prompt-edit-fields .prompt-field-ta').forEach(ta => {
+        newTemplate[ta.dataset.field] = ta.value;
+      });
+      promptTemplates[editingPromptKey] = newTemplate;
+      savePromptTemplates();
+      closeM('m-prompt-edit');
+      editingPromptKey = null;
+    };
+
+    // 恢复默认模板
+    $('prompt-edit-reset').onclick = () => {
+      if (!editingPromptKey) return;
+      if (!confirm('确定恢复此模板为默认值？')) return;
+      const defaultTemplate = defaultPromptTemplates[editingPromptKey];
+      if (defaultTemplate) {
+        $$('#prompt-edit-fields .prompt-field-ta').forEach(ta => {
+          ta.value = defaultTemplate[ta.dataset.field] || '';
+        });
+      }
+    };
+
+    // 打开JSON模板编辑
+    function openJsonEdit(key) {
+      const item = jsonKeys.find(([k]) => k === key);
+      if (!item) return;
+      editingKey = null;
+      editingJsonKey = key;
+      editingPromptKey = null;
+      $('data-edit-title').textContent = `编辑JSON模板 - ${item[1]}`;
+      $('data-edit-ta').value = promptTemplates.json[key] || '';
+      $('data-edit-err').classList.remove('vis');
+      $('data-edit-err').textContent = '';
+      openM('m-data-edit');
+    }
+
+    // 加载模板
+    function loadPromptTemplates() {
+      const saved = localStorage.getItem('storyOutline_promptTemplates');
+      if (saved) {
+        try {
+          promptTemplates = JSON.parse(saved);
+        } catch {}
+      }
+    }
+
+    // 保存模板
+    function savePromptTemplates() {
+      localStorage.setItem('storyOutline_promptTemplates', JSON.stringify(promptTemplates));
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SAVE_PROMPT_TEMPLATES',
+        promptTemplates
+      }, '*');
+    }
+
+    // 重置全部模板
+    $('btn-reset-all-prompts').onclick = () => {
+      if (!confirm('确定重置全部模板为默认值？此操作不可恢复。')) return;
+      promptTemplates = JSON.parse(JSON.stringify(defaultPromptTemplates));
+      localStorage.removeItem('storyOutline_promptTemplates');
+      renderPromptList();
+      renderJsonList();
+    };
+
+    $('set-save').onclick = () => {
+      // 收集全局设置
+      globalSettings = {
+        apiUrl: $('set-api-url').value.trim(),
+        apiKey: $('set-api-key').value.trim(),
+        model: $('set-model').value.trim()
+      };
+      // 收集 stage 和 deviationScore
+      D.stage = Math.max(0, Math.min(10, parseInt($('set-stage').value, 10) || 0));
+      D.deviationScore = Math.max(0, Math.min(100, parseInt($('set-deviation').value, 10) || 0));
+      // 收集通讯设置
+      commSettings = {
+        historyCount: Math.max(0, Math.min(200, parseInt($('set-history-count').value, 10) || 50)),
+        npcPosition: parseInt($('set-npc-position').value, 10) || 0,
+        npcOrder: Math.max(0, Math.min(1000, parseInt($('set-npc-order').value, 10) || 100))
+      };
+      // 保存提示词模板
+      savePromptTemplates();
+      // 收集选中的数据
+      const outlineData = {};
+      dataKeys.forEach(([k, , , get]) => {
+        if (dataChecked[k]) {
+          outlineData[k] = get();
+        }
+      });
+      // 发送保存请求到父窗口
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'SAVE_SETTINGS',
+        globalSettings,
+        commSettings,
+        stage: D.stage,
+        deviationScore: D.deviationScore,
+        dataChecked,
+        outlineData,
+        allData: {
+          meta: D.meta,
+          timeline: D.timeline,
+          world: D.world,
+          outdoor: D.maps.outdoor,
+          indoor: D.maps.indoor,
+          strangers: D.contacts.strangers,
+          contacts: D.contacts.contacts
+        }
+      }, '*');
+      closeM('m-settings');
+    };
+    $('btn-close').onclick = () => parent.postMessage({
+      source: 'LittleWhiteBox-OutlineFrame',
+      type: 'CLOSE_PANEL'
+    }, '*');
+    // 通知父窗口 iframe 已准备就绪
+    function notifyReady() {
+      console.log('[Story Outline Frame] Notifying parent that frame is ready...');
+      parent.postMessage({
+        source: 'LittleWhiteBox-OutlineFrame',
+        type: 'FRAME_READY'
+      }, '*');
+    }
+    addEventListener('resize', () => requestAnimationFrame(drawLines));
+    document.addEventListener('DOMContentLoaded', () => {
+      render();
+      initPos();
+      if (isMob()) openPop(1);
+      // 通知父窗口已准备就绪
+      notifyReady();
+    });
+  </script>
+</body>
+
+</html>
