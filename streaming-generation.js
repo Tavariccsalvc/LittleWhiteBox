@@ -1,5 +1,5 @@
 import { eventSource, event_types, main_api, chat, name1, getRequestHeaders, extractMessageFromData, activateSendButtons, deactivateSendButtons } from "../../../../script.js";
-import { getStreamingReply, chat_completion_sources, oai_settings, promptManager, getChatCompletionModel, tryParseStreamingError, openai_settings, openai_setting_names } from "../../../openai.js";
+import { getStreamingReply, chat_completion_sources, oai_settings, promptManager, getChatCompletionModel, tryParseStreamingError } from "../../../openai.js";
 import { ChatCompletionService } from "../../../custom-request.js";
 import { getEventSourceStream } from "../../../sse-stream.js";
 import { getContext } from "../../../st-context.js";
@@ -111,53 +111,6 @@ class StreamingGeneration {
         return { api, model };
     }
 
-    /**
-     * 获取指定预设的参数值
-     * @param {string} presetName - 预设名称
-     * @returns {object|null} - 预设参数对象，如果找不到则返回 null
-     */
-    getPresetSettings(presetName) {
-        if (!presetName || !openai_setting_names || !openai_settings) {
-            return null;
-        }
-        const presetIndex = openai_setting_names[presetName];
-        if (presetIndex === undefined || !openai_settings[presetIndex]) {
-            return null;
-        }
-        return openai_settings[presetIndex];
-    }
-
-    /**
-     * 临时应用预设配置执行函数，完成后自动恢复
-     * 轻量版：只替换核心字段，直接操作内存
-     */
-    async withPresetPrompts(presetName, fn) {
-        const preset = this.getPresetSettings(presetName);
-        if (!preset) return await fn();
-
-        // 只替换最核心的两个字段 + 采样参数
-        const swap = { prompts: 1, prompt_order: 1 };
-        const paramMap = { temperature: 'temp_openai', frequency_penalty: 'freq_pen_openai', 
-            presence_penalty: 'pres_pen_openai', top_p: 'top_p_openai', openai_max_tokens: 'openai_max_tokens' };
-        
-        // 备份 & 应用
-        const backup = {};
-        for (const k in swap) {
-            if (oai_settings[k] !== undefined) backup[k] = oai_settings[k];
-            if (preset[k] !== undefined) oai_settings[k] = preset[k];
-        }
-        for (const [pk, sk] of Object.entries(paramMap)) {
-            if (oai_settings[sk] !== undefined) backup[sk] = oai_settings[sk];
-            if (preset[pk] !== undefined) oai_settings[sk] = preset[pk];
-        }
-
-        try {
-            return await fn();
-        } finally {
-            Object.assign(oai_settings, backup);
-        }
-    }
-
     async callAPI(generateData, abortSignal, stream = true) {
         const messages = Array.isArray(generateData) ? generateData :
             (generateData?.prompt || generateData?.messages || generateData);
@@ -205,8 +158,6 @@ class StreamingGeneration {
         const tpUser = num(baseOptions?.top_p);
         const tkUser = num(baseOptions?.top_k);
         const mtUser = num(baseOptions?.max_tokens);
-        
-        // 直接从 oai_settings 读取（withPresetPrompts 已经临时替换过了）
         const tUI = num(oai_settings?.temp_openai);
         const ppUI = num(oai_settings?.pres_pen_openai);
         const fpUI = num(oai_settings?.freq_pen_openai);
@@ -215,7 +166,6 @@ class StreamingGeneration {
         const tpUI_Gemini = num(oai_settings?.makersuite_top_p ?? oai_settings?.top_p);
         const tkUI_Gemini = num(oai_settings?.makersuite_top_k ?? oai_settings?.top_k);
         const mtUI_Gemini = num(oai_settings?.makersuite_max_tokens ?? oai_settings?.max_output_tokens ?? oai_settings?.openai_max_tokens ?? oai_settings?.max_tokens);
-
         const effectiveTemperature = isUnset('temperature') ? undefined : (tUser ?? tUI);
         const effectivePresence = isUnset('presence_penalty') ? undefined : (ppUser ?? ppUI);
         const effectiveFrequency = isUnset('frequency_penalty') ? undefined : (fpUser ?? fpUI);
@@ -277,7 +227,6 @@ class StreamingGeneration {
             });
             if (!response.ok) {
                 const txt = await response.text().catch(() => '');
-                // 使用酒馆的错误解析逻辑
                 tryParseStreamingError(response, txt);
                 throw new Error(txt || `后端响应错误: ${response.status}`);
             }
@@ -292,16 +241,13 @@ class StreamingGeneration {
                         const { done, value } = await reader.read();
                         if (done) return;
                         
-                        // 检查是否有数据
                         if (!value?.data) continue;
                         
                         const rawData = value.data;
                         if (rawData === '[DONE]') return;
                         
-                        // 关键：每次都检查流式错误，就像酒馆做的那样
                         tryParseStreamingError(response, rawData);
                         
-                        // 解析 JSON
                         let parsed;
                         try {
                             parsed = JSON.parse(rawData);
@@ -312,18 +258,27 @@ class StreamingGeneration {
                         
                         // 提取回复内容
                         const chunk = getStreamingReply(parsed, state, { chatCompletionSource: source });
-                        
-                        // getStreamingReply 可能返回字符串或对象，需要正确处理
+
+                        let chunkText = '';
                         if (chunk) {
-                            const chunkText = typeof chunk === 'string' ? chunk : String(chunk);
-                            if (chunkText) {
-                                text += chunkText;
-                                yield text;
+                            chunkText = typeof chunk === 'string' ? chunk : String(chunk);
+                        }
+
+                        // content 为空时回退到 reasoning_content
+                        if (!chunkText) {
+                            const delta = parsed?.choices?.[0]?.delta;
+                            const rc = delta?.reasoning_content ?? parsed?.reasoning_content;
+                            if (rc) {
+                                chunkText = typeof rc === 'string' ? rc : String(rc);
                             }
+                        }
+
+                        if (chunkText) {
+                            text += chunkText;
+                            yield text;
                         }
                     }
                 } catch (err) {
-                    // 只忽略用户主动中止的错误
                     if (err?.name !== 'AbortError') {
                         console.error('[StreamingGeneration] Stream error:', err);
                         throw err;
@@ -335,7 +290,18 @@ class StreamingGeneration {
         } else {
             const payload = ChatCompletionService.createRequestData(body);
             const json = await ChatCompletionService.sendRequest(payload, false, abortSignal);
-            return String(extractMessageFromData(json, ChatCompletionService.TYPE) || '');
+            let result = String(extractMessageFromData(json, ChatCompletionService.TYPE) || '');
+            
+            // content 为空时回退到 reasoning_content
+            if (!result) {
+                const msg = json?.choices?.[0]?.message;
+                const rc = msg?.reasoning_content ?? json?.reasoning_content;
+                if (rc) {
+                    result = typeof rc === 'string' ? rc : String(rc);
+                }
+            }
+            
+            return result;
         }
     }
 
@@ -810,7 +776,6 @@ class StreamingGeneration {
         const apiOptions = {
             api: args?.api, apiurl: args?.apiurl,
             apipassword: args?.apipassword, model: args?.model,
-            preset: args?.preset,
             enableNet: ['on','true','1','yes'].includes(String(args?.net ?? '').toLowerCase()),
             top_p: this.parseOpt(args, 'top_p'),
             top_k: this.parseOpt(args, 'top_k'),
@@ -1090,8 +1055,6 @@ class StreamingGeneration {
         const lockArg = String(args?.lock || '').toLowerCase();
         const lock = lockArg === 'on' || lockArg === 'true' || lockArg === '1';
         const nonstream = String(args?.nonstream || '').toLowerCase() === 'true';
-        const presetName = String(args?.preset || '').trim();
-        
         const buildGenDataWithOptions = async () => {
             const context = getContext();
             const tempMessage = {
@@ -1123,21 +1086,11 @@ class StreamingGeneration {
                 }
             };
             eventSource.on(event_types.GENERATE_AFTER_DATA, dataListener);
-            
-            // 核心：用 withPresetPrompts 包装 generate 调用，以使用目标预设的提示词组合
-            const doGenerate = async () => {
+            try {
                 await context.generate('normal', {
                     quiet_prompt: prompt.trim(), quietToLoud: false,
                     skipWIAN: false, force_name2: true
                 }, true);
-            };
-            
-            try {
-                if (presetName) {
-                    await this.withPresetPrompts(presetName, doGenerate);
-                } else {
-                    await doGenerate();
-                }
             } finally {
                 eventSource.removeListener(event_types.GENERATE_AFTER_DATA, dataListener);
                 chat.length = originalLength;
@@ -1145,7 +1098,6 @@ class StreamingGeneration {
             const apiOptions = {
                 api: args?.api, apiurl: args?.apiurl,
                 apipassword: args?.apipassword, model: args?.model,
-                preset: args?.preset,
                 enableNet: ['on','true','1','yes'].includes(String(args?.net ?? '').toLowerCase()),
                 top_p: this.parseOpt(args, 'top_p'),
                 top_k: this.parseOpt(args, 'top_k'),
@@ -1235,7 +1187,6 @@ class StreamingGeneration {
             { name: 'apiurl', description: '自定义后端URL', typeList: [ARGUMENT_TYPE.STRING] },
             { name: 'apipassword', description: '后端密码', typeList: [ARGUMENT_TYPE.STRING] },
             { name: 'model', description: '模型名', typeList: [ARGUMENT_TYPE.STRING] },
-            { name: 'preset', description: '使用指定预设的完整配置（提示词组合+采样参数）', typeList: [ARGUMENT_TYPE.STRING] },
             { name: 'position', description: '插入位置：bottom/history', typeList: [ARGUMENT_TYPE.STRING], enumList: ['bottom', 'history'] },
             { name: 'temperature', description: '温度', typeList: [ARGUMENT_TYPE.STRING] },
             { name: 'presence_penalty', description: '存在惩罚', typeList: [ARGUMENT_TYPE.STRING] },
