@@ -382,6 +382,26 @@ body {
     .settings-field-inline input[type="checkbox"] { width: 22px; height: 22px; }
     .section-edit-btn { min-height: 32px; padding: 6px 12px; }
 }
+.phase-toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 85vw;
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    border-radius: 8px;
+    z-index: 10001;
+    animation: toastIn 0.2s ease;
+    word-break: break-word;
+}
+@keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 </style>
 </head>
 <body>
@@ -645,7 +665,7 @@ function renderRelations(data) {
     const w = dom.clientWidth || 400, h = dom.clientHeight || 280, minDim = Math.min(w, h);
     relationChart.setOption({
         tooltip: { show: false },
-        series: [{ type: 'graph', layout: 'force', roam: false, draggable: true, left: '5%', right: '5%', top: '5%', bottom: '5%', data: nodes, links, force: { repulsion: minDim * 2.5, edgeLength: [minDim * 0.25, minDim * 0.55], gravity: 0.005, friction: 0.5, layoutAnimation: true }, emphasis: { focus: 'adjacency', itemStyle: { shadowBlur: 16, shadowColor: 'rgba(0,0,0,0.3)' }, lineStyle: { width: 4, color: '#1a1a1a' } }, select: { itemStyle: { borderWidth: 3, borderColor: '#ff4444' } } }]
+        series: [{ type: 'graph', layout: 'force', roam: false, draggable: true, left: '5%', right: '5%', top: '5%', bottom: '5%', data: nodes, links, force: { repulsion: minDim * 5, edgeLength: [minDim * 0.4, minDim * 0.8], gravity: 0.005, friction: 0.5, layoutAnimation: true }, emphasis: { focus: 'adjacency', itemStyle: { shadowBlur: 16, shadowColor: 'rgba(0,0,0,0.3)' }, lineStyle: { width: 4, color: '#1a1a1a' } }, select: { itemStyle: { borderWidth: 3, borderColor: '#ff4444' } } }]
     });
     relationChart.off('click');
     relationChart.on('click', params => { if (params.dataType === 'node') highlightArc(params.data.id); });
@@ -662,10 +682,40 @@ function renderArcs(arcs) {
     summaryData.arcs = arcs || [];
     const c = document.getElementById('arcs-list');
     if (!arcs?.length) { c.innerHTML = '<div class="empty-state">暂无角色数据</div>'; return; }
+    
+    const truncate = (str, len) => str && str.length > len ? str.slice(0, len) + '…' : (str || '');
+    
     c.innerHTML = arcs.map(arc => {
         const beats = (arc.moments || arc.beats || []).map(m => typeof m === 'string' ? m : m.text);
-        return `<div class="arc-card" data-character-id="${arc.id || arc.name}"><div class="arc-header"><span class="arc-name">${arc.name || '角色'}</span><span class="arc-phase">${arc.trajectory || arc.phase || ''}</span></div><div class="arc-progress"><div class="arc-progress-inner" style="width:${(arc.progress || 0) * 100}%"></div></div><div class="arc-info"><span>弧光进度</span><span>${Math.round((arc.progress || 0) * 100)}%</span></div><div class="arc-beats">${beats.map(b => `<div class="arc-beat">${b}</div>`).join('')}</div></div>`;
+        const fullPhase = arc.trajectory || arc.phase || '';
+        return `<div class="arc-card" data-character-id="${arc.id || arc.name}">
+            <div class="arc-header">
+                <span class="arc-name">${arc.name || '角色'}</span>
+                <span class="arc-phase" data-full="${fullPhase.replace(/"/g, '&quot;')}">${truncate(fullPhase, 20)}</span>
+            </div>
+            <div class="arc-progress"><div class="arc-progress-inner" style="width:${(arc.progress || 0) * 100}%"></div></div>
+            <div class="arc-info"><span>弧光进度</span><span>${Math.round((arc.progress || 0) * 100)}%</span></div>
+            <div class="arc-beats">${beats.map(b => `<div class="arc-beat">${b}</div>`).join('')}</div>
+        </div>`;
     }).join('');
+    
+    c.querySelectorAll('.arc-phase').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', e => {
+            e.stopPropagation();
+            const full = el.dataset.full;
+            if (full && full.length > 20) {
+                document.querySelectorAll('.phase-toast').forEach(t => t.remove());
+                const toast = document.createElement('div');
+                toast.className = 'phase-toast';
+                toast.textContent = full;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+                toast.addEventListener('click', () => toast.remove());
+            }
+        });
+    });
+    
     c.querySelectorAll('.arc-card').forEach(card => {
         card.addEventListener('click', () => {
             c.querySelectorAll('.arc-card').forEach(x => x.classList.remove('arc-card-active'));
@@ -678,6 +728,7 @@ function renderArcs(arcs) {
         });
     });
 }
+
 function updateStats(s) { if (!s) return; document.getElementById('stat-summarized').textContent = s.summarizedUpTo ?? 0; document.getElementById('stat-events').textContent = s.eventsCount ?? 0; document.getElementById('stat-pending').textContent = s.pendingFloors ?? 0; }
 const editorModal = document.getElementById('editor-modal');
 const editorTextarea = document.getElementById('editor-textarea');

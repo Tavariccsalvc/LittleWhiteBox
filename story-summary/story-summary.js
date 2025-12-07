@@ -621,10 +621,10 @@ ${newHistoryText}
   ],
   "newCharacters": ["新出现的角色名"],
   "newRelationships": [
-    {"from": "A", "to": "B", "label": "关系", "trend": "亲近|疏远|不变|新建|破裂"}
+    {"from": "A", "to": "B", "label": "整体关系", "trend": "亲近|疏远|不变|新建|破裂"}
   ],
   "arcUpdates": [
-    {"name": "角色名", "trajectory": "最新状态", "progress": 0.0-1.0, "newMoment": "新关键时刻"}
+    {"name": "角色名", "trajectory": "整个故事至今角色弧光,30字节内", "progress": 0.0-1.0, "newMoment": "新关键时刻"}
   ]
 }
 
@@ -737,8 +737,21 @@ async function runSummaryGeneration(mesId, configFromFrame) {
         type: "SUMMARY_STATUS",
         statusText: `已更新至 ${slice.endMesId + 1} 楼 · ${merged.events?.length || 0} 个事件`,
     });
+
     const { chat } = getContext();
     const totalFloors = Array.isArray(chat) ? chat.length : 0;
+
+    const newHideRange = calcHideRange(slice.endMesId);
+    let actualHiddenCount = 0;
+    if (store.hideSummarizedHistory && newHideRange) {
+        const oldHideRange = calcHideRange(lastSummarized);
+        const newHideStart = oldHideRange ? oldHideRange.end + 1 : 0;
+        if (newHideStart <= newHideRange.end) {
+            executeSlashCommand(`/hide ${newHideStart}-${newHideRange.end}`);
+        }
+        actualHiddenCount = newHideRange.end + 1;
+    }
+
     postToFrame({
         type: "SUMMARY_BASE_DATA",
         stats: {
@@ -746,8 +759,10 @@ async function runSummaryGeneration(mesId, configFromFrame) {
             summarizedUpTo: slice.endMesId + 1,
             eventsCount: merged.events?.length || 0,
             pendingFloors: totalFloors - slice.endMesId - 1,
+            hiddenCount: actualHiddenCount,
         },
     });
+
     updateSummaryExtensionPrompt();
     setSummaryGenerating(false);
     return true;
@@ -787,7 +802,7 @@ async function autoRunSummaryWithRetry(targetMesId, configForRun) {
 function formatSummaryForPrompt(store) {
     const data = store.json || {};
     const parts = [];
-    parts.push("【此处是对以上可见历史，及因记忆限制不可见历史的所有总结】");
+    parts.push("【此处是对以上可见历史，及因上下文限制被省略历史的所有总结。请严格依据此总结理解剧情背景。】");
     if (data.keywords?.length) {
         parts.push(`关键词：${data.keywords.map(k => k.text).join(" / ")}`);
     }
@@ -799,7 +814,7 @@ function formatSummaryForPrompt(store) {
         const lines = data.arcs.map(a => `- ${a.name}：${a.trajectory}`).join("\n");
         parts.push(`角色状态：\n${lines}`);
     }
-    return `<剧情总结>\n${parts.join("\n\n")}\n</剧情总结>`;
+    return `<剧情总结>\n${parts.join("\n\n")}\n</剧情总结>\n以下是总结后新发生的情节:`;
 }
 
 function updateSummaryExtensionPrompt() {

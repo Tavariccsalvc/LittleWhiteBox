@@ -7,7 +7,7 @@ import {
     buildSmsMessages, buildSummaryMessages, buildSmsHistoryContent, buildExistingSummaryContent,
     buildNpcGenerationMessages, formatNpcToWorldbookContent, buildExtractStrangersMessages,
     buildWorldGenMessages, buildWorldSimMessages, buildSceneSwitchMessages, buildInviteMessages,
-    buildOverlayHtml, MOBILE_LAYOUT_STYLE, DESKTOP_LAYOUT_STYLE
+    buildOverlayHtml, MOBILE_LAYOUT_STYLE, DESKTOP_LAYOUT_STYLE, getPromptConfigPayload, setPromptConfig
 } from "./story-outline-prompt.js";
 
 const EXT_ID = "LittleWhiteBox";
@@ -98,7 +98,15 @@ const validators = {
     array: o => Array.isArray(o),
     scene: o => o?.review && o?.scene_setup,
     invite: o => typeof o?.invite === 'boolean' && o?.reply,
-    world: o => o?.meta && o?.timeline
+    // 世界数据校验：故事模式必须包含 meta + timeline；
+    // 辅助模式只要求 world 或 maps 存在（不强制大纲与时间线）。
+    world: o => {
+        const mode = (getGlobalSettings().mode || 'story');
+        if (mode === 'assist') {
+            return !!o && (!!o.world || !!o.maps);
+        }
+        return !!(o && o.meta && o.timeline);
+    }
 };
 
 function getSettings() {
@@ -114,11 +122,12 @@ function getOutlineStore() {
     return lwb.storyOutline ||= {
         mapData: null, stage: 0, deviationScore: 0,
         outlineData: { meta: null, timeline: null, world: null, outdoor: null, indoor: null, sceneSetup: null, strangers: null, contacts: null },
-        dataChecked: { meta: false, timeline: false, world: false, outdoor: false, indoor: false, sceneSetup: false, strangers: false, contacts: false }
+        // 预设 Story Outline 默认勾选：除陌路人/联络人外的所有部分
+        dataChecked: { meta: true, timeline: true, world: true, outdoor: true, indoor: true, sceneSetup: true, strangers: false, contacts: false }
     };
 }
 
-const getGlobalSettings = () => getStorage(STORAGE_KEYS.global, { apiUrl: '', apiKey: '', model: '' });
+const getGlobalSettings = () => getStorage(STORAGE_KEYS.global, { apiUrl: '', apiKey: '', model: '', mode: 'assist' });
 const saveGlobalSettings = s => setStorage(STORAGE_KEYS.global, s);
 const getCommSettings = () => ({ historyCount: 50, npcPosition: 0, npcOrder: 100, ...getStorage(STORAGE_KEYS.comm, {}) });
 const saveCommSettings = s => setStorage(STORAGE_KEYS.comm, s);
@@ -199,12 +208,10 @@ async function searchWorldbookByName(name) {
 
 // ================== 剧情大纲格式化 ==================
 function getVisibleOnionLayers(stage) {
-    const layers = [
-        ['L1_Surface', 'L2_Traces'], ['L1_Surface', 'L2_Traces', 'L3_Mechanism'],
-        ['L2_Traces', 'L3_Mechanism', 'L4_Nodes'], ['L3_Mechanism', 'L4_Nodes', 'L5_Core'],
-        ['L4_Nodes', 'L5_Core', 'L6_Drive'], ['L5_Core', 'L6_Drive', 'L7_Consequence']
-    ];
-    return layers[Math.min(stage, 5)];
+    const order = ['L1_Surface', 'L2_Traces', 'L3_Mechanism', 'L4_Nodes', 'L5_Core', 'L6_Drive', 'L7_Consequence'];
+    // 0=L2以下，1=L3以下 ... 4=L6以下，5及以上=L7以下；只设上限，不设下限
+    const cappedStage = Math.min(Math.max(0, stage), 5);
+    return order.slice(0, cappedStage + 2);
 }
 
 function formatMapDataAsPrompt() {
@@ -287,7 +294,8 @@ function sendSettingsToFrame() {
     postToFrame({
         type: "LOAD_SETTINGS", globalSettings: getGlobalSettings(), commSettings: getCommSettings(),
         stage: store?.stage ?? 0, deviationScore: store?.deviationScore ?? 0,
-        dataChecked: store?.dataChecked || {}, outlineData: store?.outlineData || {}
+        dataChecked: store?.dataChecked || {}, outlineData: store?.outlineData || {},
+        promptConfig: getPromptConfigPayload?.()
     });
 }
 
@@ -575,11 +583,13 @@ async function handleSceneSwitch({ requestId, prevLocationName, prevLocationInfo
         const comm = getCommSettings();
         const stage = store?.stage || 0;
         const timeline = store?.outlineData?.timeline?.find(t => t.stage === stage);
+        const mode = (getGlobalSettings().mode || 'story');
         
         const messages = buildSceneSwitchMessages({
             prevLocationName: prevLocationName || '未知地点', prevLocationInfo: prevLocationInfo || '',
             targetLocationName: targetLocationName || '未知地点', targetLocationType: targetLocationType || 'sub', targetLocationInfo: targetLocationInfo || '',
-            storyOutline: formatMapDataAsPrompt(), stage, currentTimeline: timeline, historyCount: comm.historyCount || 50, playerAction: playerAction || ''
+            storyOutline: formatMapDataAsPrompt(), stage, currentTimeline: timeline, historyCount: comm.historyCount || 50, playerAction: playerAction || '',
+            mode
         });
         
         const data = await callLLMWithRetry({ messages, validate: validators.scene });
@@ -642,10 +652,16 @@ async function handleSendInvite({ requestId, contactName, contactUid, targetLoca
 
 async function handleGenerateWorld({ requestId, playerRequests }) {
     try {
-        const messages = buildWorldGenMessages({ playerRequests: playerRequests || '', historyCount: getCommSettings().historyCount || 50 });
+        const mode = (getGlobalSettings().mode || 'story');
+        const messages = buildWorldGenMessages({ mode, playerRequests: playerRequests || '', historyCount: getCommSettings().historyCount || 50 });
         const data = await callLLMWithRetry({ messages, validate: validators.world });
-        
-        if (!data?.meta) return replyError('GENERATE_WORLD_RESULT', requestId, '世界生成失败：无法解析 JSON 数据');
+        // 对于故事模式要求 meta/timeline；辅助模式仅需 world 或 maps。
+        if (!data || !validators.world(data)) {
+            const msg = mode === 'assist'
+                ? '世界生成失败：无法解析 JSON 数据（需包含 world 或 maps 字段）'
+                : '世界生成失败：无法解析 JSON 数据';
+            return replyError('GENERATE_WORLD_RESULT', requestId, msg);
+        }
         
         const store = getOutlineStore();
         if (store) { store.stage = 0; store.deviationScore = 0; saveMetadataDebounced?.(); }
@@ -656,14 +672,21 @@ async function handleGenerateWorld({ requestId, playerRequests }) {
 
 async function handleSimulateWorld({ requestId, currentData }) {
     try {
-        const messages = buildWorldSimMessages({ currentWorldData: currentData || '{}', historyCount: getCommSettings().historyCount || 50 });
+        const mode = (getGlobalSettings().mode || 'story');
+        const messages = buildWorldSimMessages({ mode, currentWorldData: currentData || '{}', historyCount: getCommSettings().historyCount || 50 });
         const data = await callLLMWithRetry({ messages, validate: validators.world });
-        
-        if (!data?.meta) return replyError('SIMULATE_WORLD_RESULT', requestId, '世界推演失败：无法解析 JSON 数据');
+        // 故事模式需要完整世界数据；辅助模式只关心 world/maps。
+        if (!data || !validators.world(data)) {
+            const msg = mode === 'assist'
+                ? '世界推演失败：无法解析 JSON 数据（需包含 world 或 maps 字段）'
+                : '世界推演失败：无法解析 JSON 数据';
+            return replyError('SIMULATE_WORLD_RESULT', requestId, msg);
+        }
         
         const store = getOutlineStore();
         if (store) {
-            store.stage = data.timeline?.[0]?.stage ?? (store.stage || 0) + 1;
+            // 推演后的阶段仅由脚本控制递增，不接受模型返回的 stage
+            store.stage = (store.stage || 0) + 1;
             saveMetadataDebounced?.();
         }
         
@@ -684,6 +707,12 @@ function handleSaveSettings(data) {
         store.updatedAt = Date.now();
         saveMetadataDebounced?.();
     }
+}
+
+function handleSavePrompts(data) {
+    if (!data?.promptConfig) return;
+    setPromptConfig?.(data.promptConfig, true);
+    postToFrame({ type: "PROMPT_CONFIG_UPDATED", promptConfig: getPromptConfigPayload?.() });
 }
 
 function handleSaveContacts(data) {
@@ -707,6 +736,7 @@ const handlers = {
     SAVE_MAP_DATA: d => { const s = getOutlineStore(); if (s && d.mapData) { s.mapData = d.mapData; s.updatedAt = Date.now(); saveMetadataDebounced?.(); } },
     GET_SETTINGS: sendSettingsToFrame,
     SAVE_SETTINGS: handleSaveSettings,
+    SAVE_PROMPTS: handleSavePrompts,
     SAVE_CONTACTS: handleSaveContacts,
     SAVE_ALL_DATA: handleSaveAllData,
     FETCH_MODELS: handleFetchModels,

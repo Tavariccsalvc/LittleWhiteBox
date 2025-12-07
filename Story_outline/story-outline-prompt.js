@@ -1,6 +1,8 @@
 // Story Outline 提示词模板配置
 // 统一 UAUA (User-Assistant-User-Assistant) 结构
 
+const PROMPT_STORAGE_KEY = 'LittleWhiteBox_StoryOutline_CustomPrompts';
+
 // ================== 辅助函数 ==================
 const wrap = (tag, content) => content ? `<${tag}>\n${content}\n</${tag}>` : '';
 const worldInfo = `<world_info>\n{{description}}{$worldInfo}\n</world_info>`;
@@ -10,13 +12,14 @@ const nameList = (contacts, strangers) => {
     return names.length ? `\n\n**已存在角色（不要重复）：** ${names.join('、')}` : '';
 };
 const randomRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const safeJson = fn => { try { return fn(); } catch { return null; } };
 
 // 导出兼容函数
 export const buildSmsHistoryContent = t => t ? `<已有短信>\n${t}\n</已有短信>` : '<已有短信>\n（空白，首次对话）\n</已有短信>';
 export const buildExistingSummaryContent = t => t ? `<已有总结>\n${t}\n</已有总结>` : '<已有总结>\n（空白，首次总结）\n</已有总结>';
 
 // ================== JSON 模板（用户可自定义） ==================
-export const JSON_TEMPLATES = {
+const DEFAULT_JSON_TEMPLATES = {
     invite: `{
   "cot": "思维链：分析角色当前的处境、与玩家的关系、对邀请地点的看法...",
   "invite": true,
@@ -41,6 +44,7 @@ export const JSON_TEMPLATES = {
     
     stranger: `[{ "name": "角色名", "location": "当前地点", "info": "一句话简介" }]`,
     
+    // ===== 剧情模式：世界生成 / 推演 / 场景切换 =====
     worldGen: `{
   "meta": {
     "truth": {
@@ -100,7 +104,7 @@ export const JSON_TEMPLATES = {
       ]
     }
   }
-}`,
+    }`,
     
     worldSim: `{
   "meta": {
@@ -137,7 +141,10 @@ export const JSON_TEMPLATES = {
     }
   },
   "timeline": [
-    { "stage": "state": "演化后的新状态", "event": "新爆发的大事件" }
+    { "stage": 0 "state": "初始状态", "event": "发生的标志性事件" },
+    { "stage": 1, "state": "演化后的新状态", "event": "新爆发的大事件" },
+    { "stage": 2, "state": "演化后的新状态", "event": "爆发的大事件" },
+    { "stage": 3, "state": "...", "event": "..." },
   ],
   "world": {
     "news": [
@@ -160,7 +167,7 @@ export const JSON_TEMPLATES = {
       ]
     }
   }
-}`,
+    }`,
     
     sceneSwitch: `{
   "review": {
@@ -197,12 +204,106 @@ export const JSON_TEMPLATES = {
       }
     ]
   }
+}`,
+
+    // ===== 辅助模式：只负责地图/新闻/轻剧情，不写大纲与时间线 =====
+    // 世界生成（辅助模式）：不要求 meta / timeline，重点生成 world.news + maps
+    worldGenAssist: `{
+  "meta": null,
+  "timeline": [],
+  "world": {
+    "news": [
+      { "title": "新闻标题1", "time": "时间", "content": "以轻松日常的口吻描述世界现状" },
+      { "title": "新闻标题2", "time": "...", "content": "可以是小道消息、趣闻轶事" },
+      { "title": "新闻标题3", "time": "...", "content": "..." }
+    ]
+  },
+  "maps": {
+    "outdoor": {
+      "description": "全景描写，聚焦氛围与可探索要素。所有可去节点名用 [[名字]] 包裹。",
+      "nodes": [
+        {
+          "name": "地点名",
+          "position": "north/south/east/west/northeast/southwest/northwest/southeast",
+          "distant": 1,
+          "type": "main/sub/home",
+          "info": "地点特征与氛围，适合作为舞台的小事件或偶遇"
+        }
+      ]
+    }
+  }
+}`,
+
+    // 世界推演（辅助模式）：只更新 world.news 与 maps 描述，不动 meta/timeline（可为空）
+    worldSimAssist: `{
+  "meta": null,
+  "timeline": [],
+  "world": {
+    "news": [
+      { "title": "新的头条", "time": "推演后的时间", "content": "用轻松/中性的语气，描述世界最近发生的小变化" },
+      { "title": "...", "time": "...", "content": "比如店家打折、节庆活动、某个 NPC 的日常糗事" },
+      { "title": "...", "time": "...", "content": "..." }
+    ]
+  },
+  "maps": {
+    "outdoor": {
+      "description": "更新后的全景描写，体现日常层面的变化（装修、节日装饰、天气等），包含所有节点 [[名字]]。",
+      "nodes": [
+        {
+          "name": "地点名（尽量沿用原有命名，如有变化保持风格一致）",
+          "position": "保持原大致方位，如 north/south/east/west/northeast/southwest/northwest",
+          "distant": 1,
+          "type": "main/sub/home",
+          "info": "新的环境描写。偏生活流，只讲玩家能直接感受到的变化"
+        }
+      ]
+    }
+  }
+}`,
+
+    // 场景切换（辅助模式）：生成一小段小剧情 + 局部地图
+    sceneSwitchAssist: `{
+  "review": {
+    "deviation": {
+      "cot_analysis": "简要分析玩家在上一地点的行为对氛围的影响（例如：让气氛更热闹/更安静）。",
+      "score_delta": 0,
+      "prev_loc_update": "用一两句话描写玩家离开后，上一地点的小变化（如：灯光变暗、客人散去、音乐声渐弱）。"
+    }
+  },
+  "scene_setup": {
+    "side_story": {
+      "story": "一小段日常的小剧情。可以是偶遇、误会互动等。",
+      "surface": "玩家刚进入时看到的画面或听到的话语，充满生活感。",
+      "inner": "如果玩家稍微多停留或互动，可以发现的细节（例如 NPC 的小秘密、店家的用心布置）。"
+    },
+    "local_map": {
+      "name": "当前地点名称",
+      "description": "局部地点的全景描写，适合展开小事件的舞台；包含所有 nodes 的 [[节点名]]。",
+      "nodes": [
+        {
+          "name": "节点名",
+          "position": "north/south/east/west/northeast/southwest/northwest",
+          "distant": 1,
+          "type": "main/sub",
+          "info": "该节点当前正在发生的一幕，比如聊天、摆摊、闲逛等场景"
+        }
+      ]
+    },
+    "strangers": [
+      {
+        "name": "NPC名称",
+        "location": "当前所在节点名",
+        "info": "外貌与氛围，正在做的事情。偏向日常"
+      }
+    ]
+  }
 }`
 };
+export let JSON_TEMPLATES = { ...DEFAULT_JSON_TEMPLATES };
 
 // ================== 提示词配置（用户可自定义） ==================
 // 每个配置：[u1, a1, u2, a2] 对应 UAUA 四个消息
-export const PROMPTS = {
+const DEFAULT_PROMPTS = {
     // 1. 短信回复
     sms: {
         u1: v => `现在是短信模拟场景。\n\n${wrap('story_outline', v.storyOutline)}${v.storyOutline ? '\n\n' : ''}${worldInfo}\n\n${history(v.historyCount)}\n\n以上是设定和聊天历史，遵守人设，忽略规则类信息和非${v.contactName}经历的内容。以${v.contactName}身份回复${v.userName}的短信（仅输出回复内容）。字数精简，10～30字左右。${v.characterContent ? `\n\n<${v.contactName}的人物设定>\n${v.characterContent}\n</${v.contactName}的人物设定>` : ''}`,
@@ -254,7 +355,7 @@ ${v.conversationText}
         a2: () => `了解，开始生成JSON:`
     },
     
-    // 6. 世界生成
+    // 6. 世界生成（故事模式）
     worldGen: {
         u1: () => `你是TRPG动态叙事引擎。根据【题材风格】构建逻辑自洽、曲折吸引人的初始剧情状态。
 
@@ -274,7 +375,7 @@ ${v.conversationText}
         a2: () => `严格生成JSON，不擅自修改。JSON生成开始:`
     },
     
-    // 7. 世界推演
+    // 7. 世界推演（故事模式）
     worldSim: {
         u1: () => `你是世界演化引擎。推动时间流逝，根据【玩家历史行为】和【既定命运】计算世界下一状态。
 
@@ -283,6 +384,7 @@ ${v.conversationText}
 2. **真相迭代**：L5-L7保持不变；L1-L2大幅更新；L3-L4适度更新
 3. **地图重构**：Main保留原名更新info；约30%的Sub结构性变化/删减/增加, 保证至少有${randomRange(7, 15)}个地点存在
 4. **时间推进**：Stage推进，生成全新News，至少${randomRange(3, 7)}个新闻
+5. **时间线微调**：timeline根据现状微调现在和未来的推算
 
 输出：完整 JSON，结构与模板一致，禁止解释文字。
 - 使用标准 JSON 语法：所有键名和字符串都使用半角双引号 "
@@ -292,15 +394,19 @@ ${v.conversationText}
         a2: () => `演化计算完成。JSON output start:`
     },
     
-    // 8. 场景切换
+    // 8. 场景切换（故事模式）
     sceneSwitch: {
         u1: v => {
-            const lLevel = Math.min(7, v.stage + (v.targetLocationType === 'main' ? 3 : v.targetLocationType === 'sub' ? 2 : 1));
+            const lLevel = v.targetLocationType === 'main'
+                ? Math.min(7, v.stage + 2) // 主节点：使用当前 stage + 2 的深度
+                : v.targetLocationType === 'sub'
+                    ? 2 // 次级节点：日常气氛，浅层（L2）
+                    : Math.min(7, v.stage + 1);
             return `你是TRPG场景管理器。处理玩家移动请求，结算上一地点后果，构建新地点场景。
 
 处理逻辑：
 1. **历史结算**：分析玩家最后行为，计算偏差值(0-4无关/5-10干扰/11-20转折)，描述离开后地点变化
-2. **故事生成**：用L${lLevel}级元素生成Side Story（表层钩子+里层真相）
+2. **故事生成**：用L${lLevel}级元素生成Side Story（表层钩子+里层真相）。若地点类型为 sub，请写日常气氛/生活流，与主线关联度低。
 3. **局部地图**：Description全景式描写，节点用[[名]]包裹；生成${randomRange(4, 7)}个节点和0-3个NPC
 
 输出：仅符合模板的 JSON，禁止解释文字。
@@ -308,13 +414,163 @@ ${v.conversationText}
 - 文本内容中如需使用引号，请使用单引号或中文引号「」或“”，不要使用半角双引号 "`;
         },
         a1: v => {
-            const lLevel = Math.min(7, v.stage + (v.targetLocationType === 'main' ? 3 : v.targetLocationType === 'sub' ? 2 : 1));
-            return `明白。我将结算偏差值，基于L${lLevel}深度生成Side Story和局部地图JSON。请发送上下文。`;
+            const lLevel = v.targetLocationType === 'main'
+                ? Math.min(7, v.stage + 2)
+                : v.targetLocationType === 'sub'
+                    ? 2
+                    : Math.min(7, v.stage + 1);
+            return `明白。我将结算偏差值，基于L${lLevel}深度生成Side Story和局部地图JSON。sub 类型将写成日常/支线，弱关联主线。请发送上下文。`;
         },
         u2: v => `【上一地点】：\n${v.prevLocationName}: ${v.prevLocationInfo || '无详细信息'}\n\n【世界设定】：\n${worldInfo}\n\n【剧情大纲】：\n${wrap('story_outline', v.storyOutline) || '无大纲'}\n\n【当前时间段】：\n${v.currentTimeline ? `Stage ${v.currentTimeline.stage}: ${v.currentTimeline.state} - ${v.currentTimeline.event}` : `Stage ${v.stage}`}\n\n【历史记录】：\n${history(v.historyCount)}\n\n【玩家行动意图】：\n${v.playerAction || '无特定意图'}\n\n【目标地点】：\n名称: ${v.targetLocationName}\n类型: ${v.targetLocationType}\n描述: ${v.targetLocationInfo || '无详细信息'}\n\n【JSON模板】：\n${JSON_TEMPLATES.sceneSwitch}`,
         a2: () => `OK, JSON generate start:`
+    },
+
+    // 9. 世界生成（辅助模式，仅地图/新闻，不写大纲与时间线）
+    worldGenAssist: {
+        u1: () => `你是世界观布景助手。负责搭建【地图】和【世界新闻】等可见表层信息。
+
+核心要求：
+1. 给出可探索的舞台
+2. 重点是：有氛围、有地点、有事件线索，但不过度“剧透”故事
+3. **世界**：News至少${randomRange(3, 7)}条，Maps至少${randomRange(7, 15)}个地点
+4. **历史参考**：参考玩家经历构建世界
+
+输出：仅纯净合法 JSON，结构参考模板 worldGenAssist。
+- 使用标准 JSON 语法：所有键名和字符串都使用半角双引号 "
+- 文本内容中如需使用引号，请使用单引号或中文引号「」或“”，不要使用半角双引号 "`,
+        a1: () => `明白。我将只生成世界新闻与地图信息。`,
+        u2: v => `【世界观与要求】：
+${worldInfo}
+
+【玩家经历参考】：
+${history(v.historyCount)}
+
+【玩家需求】：
+${v.playerRequests || '无特殊要求'}
+
+【JSON模板（辅助模式）】：
+${JSON_TEMPLATES.worldGenAssist}`,
+        a2: () => `严格按 worldGenAssist 模板生成JSON，仅包含 world/news 与 maps/outdoor:`
+    },
+
+    // 10. 世界推演（辅助模式，只更新地图/新闻，忽略大纲与时间线）
+    worldSimAssist: {
+        u1: () => `你是世界状态更新助手。根据当前 JSON 的 world/maps 和玩家历史，轻量更新世界现状。
+
+输出：完整 JSON，结构参考 worldSimAssist 模板，禁止解释文字。`,
+        a1: () => `明白。我将只更新 world.news 和 maps.outdoor，不写大纲与时间线。请提供当前世界数据。`,
+        u2: v => `【世界观设定】：
+${worldInfo}
+
+【玩家历史】：
+${history(v.historyCount)}
+
+【当前世界状态JSON】（可能包含 meta/timeline/world/maps 等字段）：
+${v.currentWorldData || '{}'}
+
+【JSON模板（辅助模式）】：
+${JSON_TEMPLATES.worldSimAssist}`,
+        a2: () => `开始按 worldSimAssist 模板输出JSON:`
+    },
+
+    // 11. 场景切换（辅助模式，小剧情 + 局部地图）
+    sceneSwitchAssist: {
+        u1: v => `你是TRPG场景小助手。处理玩家从一个地点走向另一个地点，只生成日常向的小剧情与局部地图。
+
+处理逻辑：
+1. 上一地点结算：简要描述玩家离开后的小变化（比如人群散去、音乐声改变），不讨论命运走向
+2. 新地点氛围：围绕 "${v.targetLocationName}" 塑造一个适合事件的场景（如小店、街角、校园一隅）
+3. 小剧情：生成一段可以马上开玩的剧情（偶遇、误会、闲聊、任务起点等）
+4. 局部地图：为该地点生成数个可互动节点（nodes），每个节点可以看作一个“拍摄镜头”或小舞台
+
+输出：仅符合 sceneSwitchAssist 模板的 JSON，禁止解释文字。
+- 使用标准 JSON 语法：所有键名和字符串都使用半角双引号 "
+- 文本内容中如需使用引号，请使用单引号或中文引号「」或“”，不要使用半角双引号 "`,
+        a1: () => `明白。我会生成小剧情与局部地图。请发送上下文。`,
+        u2: v => `【上一地点】：
+${v.prevLocationName}: ${v.prevLocationInfo || '无详细信息'}
+
+【世界设定】：
+${worldInfo}
+
+【玩家行动意图】：
+${v.playerAction || '无特定意图'}
+
+【目标地点】：
+名称: ${v.targetLocationName}
+类型: ${v.targetLocationType}
+描述: ${v.targetLocationInfo || '无详细信息'}
+
+【已有聊天与剧情历史】：
+${history(v.historyCount)}
+
+【JSON模板（辅助模式）】：
+${JSON_TEMPLATES.sceneSwitchAssist}`,
+        a2: () => `OK, sceneSwitchAssist JSON generate start:`
     }
 };
+export let PROMPTS = { ...DEFAULT_PROMPTS };
+
+const serializePrompts = prompts => Object.fromEntries(Object.entries(prompts).map(([k, v]) => [k, {
+    u1: v.u1?.toString?.() || '',
+    a1: v.a1?.toString?.() || '',
+    u2: v.u2?.toString?.() || '',
+    a2: v.a2?.toString?.() || ''
+}]));
+
+const compileFn = (src, fallback) => {
+    if (!src) return fallback;
+    try {
+        const fn = eval(`(${src})`);
+        return typeof fn === 'function' ? fn : fallback;
+    } catch {
+        return fallback;
+    }
+};
+
+const hydratePrompts = promptSources => {
+    const out = {};
+    Object.entries(DEFAULT_PROMPTS).forEach(([k, v]) => {
+        const src = promptSources?.[k] || {};
+        out[k] = {
+            u1: compileFn(src.u1, v.u1),
+            a1: compileFn(src.a1, v.a1),
+            u2: compileFn(src.u2, v.u2),
+            a2: compileFn(src.a2, v.a2)
+        };
+    });
+    return out;
+};
+
+const applyPromptConfig = cfg => {
+    if (cfg?.jsonTemplates) JSON_TEMPLATES = { ...DEFAULT_JSON_TEMPLATES, ...cfg.jsonTemplates };
+    else JSON_TEMPLATES = { ...DEFAULT_JSON_TEMPLATES };
+    PROMPTS = hydratePrompts(cfg?.promptSources || cfg?.prompts);
+};
+
+const loadPromptConfigFromStorage = () => safeJson(() => JSON.parse(localStorage.getItem(PROMPT_STORAGE_KEY)));
+const savePromptConfigToStorage = cfg => { try { localStorage.setItem(PROMPT_STORAGE_KEY, JSON.stringify(cfg)); } catch {} };
+
+export const getPromptConfigPayload = () => ({
+    current: { jsonTemplates: JSON_TEMPLATES, promptSources: serializePrompts(PROMPTS) },
+    defaults: { jsonTemplates: DEFAULT_JSON_TEMPLATES, promptSources: serializePrompts(DEFAULT_PROMPTS) }
+});
+
+export const setPromptConfig = (cfg, persist = false) => {
+    applyPromptConfig(cfg || {});
+    const payload = { jsonTemplates: JSON_TEMPLATES, promptSources: serializePrompts(PROMPTS) };
+    if (persist) savePromptConfigToStorage(payload);
+    return payload;
+};
+
+export const reloadPromptConfigFromStorage = () => {
+    const saved = loadPromptConfigFromStorage();
+    if (saved) applyPromptConfig(saved);
+    else applyPromptConfig();
+    return getPromptConfigPayload().current;
+};
+
+reloadPromptConfigFromStorage();
 
 // ================== 通用构建函数 ==================
 const build = (type, vars) => {
@@ -333,9 +589,10 @@ export const buildSummaryMessages = v => build('summary', v);
 export const buildInviteMessages = v => build('invite', v);
 export const buildNpcGenerationMessages = v => build('npc', v);
 export const buildExtractStrangersMessages = v => build('stranger', v);
-export const buildWorldGenMessages = v => build('worldGen', v);
-export const buildWorldSimMessages = v => build('worldSim', v);
-export const buildSceneSwitchMessages = v => build('sceneSwitch', v);
+// 根据 mode 选择故事模式或辅助模式的提示词
+export const buildWorldGenMessages = v => build(v?.mode === 'assist' ? 'worldGenAssist' : 'worldGen', v);
+export const buildWorldSimMessages = v => build(v?.mode === 'assist' ? 'worldSimAssist' : 'worldSim', v);
+export const buildSceneSwitchMessages = v => build(v?.mode === 'assist' ? 'sceneSwitchAssist' : 'sceneSwitch', v);
 
 // ================== NPC 格式化 ==================
 export function formatNpcToWorldbookContent(npc) {
