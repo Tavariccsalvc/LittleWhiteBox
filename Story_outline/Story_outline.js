@@ -1,8 +1,11 @@
 import { extension_settings, saveMetadataDebounced } from "../../../../extensions.js";
-import { eventSource, event_types, chat_metadata, name1 } from "../../../../../script.js";
+import { eventSource, event_types, chat_metadata, name1, setExtensionPrompt, extension_prompt_types, extension_prompt_roles } from "../../../../../script.js";
 import { loadWorldInfo, saveWorldInfo, world_names, world_info } from "../../../../world-info.js";
 import { getContext } from "../../../../st-context.js";
 import { streamingGeneration } from "../streaming-generation.js";
+
+// Story Outline 注入模块名称
+const STORY_OUTLINE_MODULE = 'LittleWhiteBox_StoryOutline';
 import { 
     buildSmsMessages, buildSummaryMessages, buildSmsHistoryContent, buildExistingSummaryContent,
     buildNpcGenerationMessages, formatNpcToWorldbookContent, buildExtractStrangersMessages,
@@ -273,6 +276,63 @@ function formatMapDataAsPrompt() {
     });
     
     return has ? text.trim() : "";
+}
+
+// ================== 剧情大纲注入主对话 ==================
+/**
+ * 将勾选的剧情大纲数据注入到主对话流程中
+ * 使用 SillyTavern 的 setExtensionPrompt API
+ */
+function injectStoryOutlineToChat() {
+    if (!getSettings().storyOutline?.enabled) {
+        // 如果功能被禁用，清除注入
+        setExtensionPrompt(STORY_OUTLINE_MODULE, '', extension_prompt_types.IN_CHAT, 0);
+        return;
+    }
+    
+    const store = getOutlineStore();
+    if (!store) {
+        // 没有聊天数据，清除注入
+        setExtensionPrompt(STORY_OUTLINE_MODULE, '', extension_prompt_types.IN_CHAT, 0);
+        return;
+    }
+    
+    // 检查是否有任何数据被勾选
+    const { dataChecked } = store;
+    const hasAnyChecked = dataChecked && Object.values(dataChecked).some(v => v === true);
+    
+    if (!hasAnyChecked) {
+        // 没有勾选任何数据，清除注入
+        setExtensionPrompt(STORY_OUTLINE_MODULE, '', extension_prompt_types.IN_CHAT, 0);
+        return;
+    }
+    
+    // 生成剧情大纲文本
+    const outlineText = formatMapDataAsPrompt();
+    
+    if (!outlineText) {
+        // 没有生成内容，清除注入
+        setExtensionPrompt(STORY_OUTLINE_MODULE, '', extension_prompt_types.IN_CHAT, 0);
+        return;
+    }
+    
+    // 获取通讯设置中的注入位置配置（如果有的话）
+    const comm = getCommSettings();
+    const position = comm.outlinePosition ?? extension_prompt_types.IN_CHAT; // 默认: 在聊天中
+    const depth = comm.outlineDepth ?? 4; // 默认深度: 4
+    const role = comm.outlineRole ?? extension_prompt_roles.SYSTEM; // 默认角色: system
+    
+    // 注入剧情大纲到对话
+    setExtensionPrompt(
+        STORY_OUTLINE_MODULE,
+        outlineText,
+        position,
+        depth,
+        false, // scan - 是否包含在世界书扫描中
+        role
+    );
+    
+    console.debug(`[Story Outline] 剧情大纲已注入到对话。位置: ${position}, 深度: ${depth}, 角色: ${role}, 内容长度: ${outlineText.length}`);
 }
 
 // ================== iframe通讯 ==================
@@ -707,6 +767,9 @@ function handleSaveSettings(data) {
         store.updatedAt = Date.now();
         saveMetadataDebounced?.();
     }
+    
+    // 设置变更后，更新注入到主对话的剧情大纲
+    injectStoryOutlineToChat();
 }
 
 function handleSavePrompts(data) {
@@ -723,11 +786,21 @@ function handleSaveContacts(data) {
     if (data.strangers) store.outlineData.strangers = data.strangers;
     store.updatedAt = Date.now();
     saveMetadataDebounced?.();
+    
+    // 联络人/陌路人变更后，更新注入
+    injectStoryOutlineToChat();
 }
 
 function handleSaveAllData(data) {
     const store = getOutlineStore();
-    if (store && data.allData) { store.outlineData = data.allData; store.updatedAt = Date.now(); saveMetadataDebounced?.(); }
+    if (store && data.allData) { 
+        store.outlineData = data.allData; 
+        store.updatedAt = Date.now(); 
+        saveMetadataDebounced?.(); 
+        
+        // 数据变更后，更新注入
+        injectStoryOutlineToChat();
+    }
 }
 
 const handlers = {
@@ -901,7 +974,17 @@ function initButtons() {
 // ================== 事件 ==================
 function registerEvents() {
     initButtons();
-    eventSource.on(event_types.CHAT_CHANGED, () => setTimeout(initButtons, 80));
+    
+    // 聊天切换时：初始化按钮 + 注入剧情大纲
+    eventSource.on(event_types.CHAT_CHANGED, () => {
+        setTimeout(initButtons, 80);
+        setTimeout(injectStoryOutlineToChat, 100); // 聊天切换后重新注入
+    });
+    
+    // 消息生成开始前：确保剧情大纲已注入
+    eventSource.on(event_types.GENERATION_STARTED, () => {
+        injectStoryOutlineToChat();
+    });
 
     const btnHandler = data => setTimeout(() => {
         const id = data?.element ? $(data.element).attr("mesid") : data?.messageId;
@@ -910,10 +993,30 @@ function registerEvents() {
 
     [event_types.USER_MESSAGE_RENDERED, event_types.CHARACTER_MESSAGE_RENDERED, event_types.MESSAGE_RECEIVED, event_types.MESSAGE_UPDATED, event_types.MESSAGE_SWIPED, event_types.MESSAGE_EDITED].forEach(t => eventSource.on(t, btnHandler));
 
-    $(document).on("xiaobaix:storyOutline:toggle", (_e, enabled) => enabled ? initButtons() : ($(".xiaobaix-story-outline-btn").remove(), hideOverlay()));
+    $(document).on("xiaobaix:storyOutline:toggle", (_e, enabled) => {
+        if (enabled) {
+            initButtons();
+            injectStoryOutlineToChat(); // 启用时注入
+        } else {
+            $(".xiaobaix-story-outline-btn").remove();
+            hideOverlay();
+            // 禁用时清除注入
+            setExtensionPrompt(STORY_OUTLINE_MODULE, '', extension_prompt_types.IN_CHAT, 0);
+        }
+    });
     
     document.addEventListener('xiaobaixEnabledChanged', e => {
-        e?.detail?.enabled ? (getSettings().storyOutline?.enabled && initButtons()) : ($(".xiaobaix-story-outline-btn").remove(), hideOverlay());
+        if (e?.detail?.enabled) {
+            if (getSettings().storyOutline?.enabled) {
+                initButtons();
+                injectStoryOutlineToChat(); // 主扩展启用时注入
+            }
+        } else {
+            $(".xiaobaix-story-outline-btn").remove();
+            hideOverlay();
+            // 主扩展禁用时清除注入
+            setExtensionPrompt(STORY_OUTLINE_MODULE, '', extension_prompt_types.IN_CHAT, 0);
+        }
     });
 }
 
@@ -926,11 +1029,18 @@ function cleanup() {
     pendingFrameMessages = [];
     window.removeEventListener("message", handleFrameMessage);
     document.getElementById("xiaobaix-story-outline-overlay")?.remove();
+    
+    // 清理时清除注入
+    setExtensionPrompt(STORY_OUTLINE_MODULE, '', extension_prompt_types.IN_CHAT, 0);
 }
 
 jQuery(() => {
     if (!getSettings().storyOutline?.enabled) return;
     registerEvents();
+    
+    // 初始化时立即尝试注入（如果已有聊天数据）
+    setTimeout(injectStoryOutlineToChat, 200);
+    
     window.registerModuleCleanup?.('storyOutline', cleanup);
 });
 
