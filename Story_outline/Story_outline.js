@@ -243,18 +243,19 @@ function formatMapDataAsPrompt() {
             text += "\n";
         }
         
-        if (d.meta.outcomes) {
-            text += "可能结局:\n";
-            ['default_end', 'intervention_end', 'resolution_end'].forEach(k => {
-                if (d.meta.outcomes[k]) text += `- ${k.replace('_end', '结局')}: ${d.meta.outcomes[k]}\n`;
-            });
-            text += "\n";
-        }
+        // 注：可能结局(outcomes)不发送给AI，仅供创作者参考
     }
     
     if (c?.timeline && d.timeline?.length) {
         const cur = d.timeline.find(t => t.stage === stage);
-        if (cur) { has = true; text += `【当前时间线】\n阶段: ${cur.stage}\n${cur.state ? `状态: ${cur.state}\n` : ''}${cur.event ? `事件: ${cur.event}\n` : ''}\n`; }
+        // 注：阶段编号不发送给AI，仅显示状态和事件
+        if (cur) { 
+            has = true; 
+            text += `【当前时间线】\n`;
+            if (cur.state) text += `状态: ${cur.state}\n`;
+            if (cur.event) text += `事件: ${cur.event}\n`;
+            text += "\n";
+        }
     }
     
     [['outdoor', '大地图'], ['indoor', '局部地图']].forEach(([k, n]) => {
